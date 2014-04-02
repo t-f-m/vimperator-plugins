@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2008-2011, anekos.
+Copyright (c) 2008-2013, anekos.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -32,7 +32,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 */
 
-let PLUGIN_INFO =
+let PLUGIN_INFO = xml`
 <VimperatorPlugin>
   <name>Maine Coon</name>
   <name lang="ja">メインクーン</name>
@@ -139,7 +139,7 @@ let PLUGIN_INFO =
     == メインクーン ==
       http://ja.wikipedia.org/wiki/%E3%83%A1%E3%82%A4%E3%83%B3%E3%82%AF%E3%83%BC%E3%83%B3
   ]]></detail>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 
 (function () {
 
@@ -272,7 +272,7 @@ let PLUGIN_INFO =
           }) +
           elemStyle
         );
-      let elem = U.xmlToDom(<div id="liberator_maine_coon" style={style}>{message}</div>, doc);
+      let elem = U.xmlToDom(xml`<div id="liberator_maine_coon" style=${style}>${message}</div>`, doc);
       doc.body.appendChild(elem);
       let count = time;
       let handle = setInterval(function () {

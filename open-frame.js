@@ -33,7 +33,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 }}} */
 
 // PLUGIN_INFO {{{
-let PLUGIN_INFO =
+let PLUGIN_INFO = xml`
 <VimperatorPlugin>
   <name>openframe-command</name>
   <name lang="ja">openframeコマンド</name>
@@ -52,13 +52,12 @@ let PLUGIN_INFO =
   <detail lang="ja"><![CDATA[
     コマンド "openframe" と "tabopenframe" を追加します。
   ]]></detail>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 // }}}
 // INFO {{{
-let INFO =
-<>
+let INFO = xml`
   <plugin name="openframe-command" version="1.2.1"
-          href="http://svn.coderepos.org/share/lang/javascript/vimperator-plugins/trunk/open-frame.js"
+          href="http://github.com/vimpr/vimperator-plugins/blob/master/open-frame.js"
           summary="Add openframe command."
           lang="en-US"
           xmlns="http://vimperator.org/namespaces/liberator">
@@ -77,7 +76,7 @@ let INFO =
     </item>
   </plugin>
   <plugin name="openframe-command" version="1.2.1"
-          href="http://svn.coderepos.org/share/lang/javascript/vimperator-plugins/trunk/open-frame.js"
+          href="http://github.com/vimpr/vimperator-plugins/blob/master/open-frame.js"
           summary="Add openframe command."
           lang="ja"
           xmlns="http://vimperator.org/namespaces/liberator">
@@ -95,7 +94,7 @@ let INFO =
       <description><p>新しいタブに選択したフレームを開く</p></description>
     </item>
   </plugin>
-</>;
+`;
 // }}}
 
 (function () {

@@ -1,4 +1,4 @@
-var PLUGIN_INFO =
+var PLUGIN_INFO = xml`
 <VimperatorPlugin>
 	<name>{NAME}</name>
 	<description>Send to your Android Phone</description>
@@ -7,7 +7,7 @@ var PLUGIN_INFO =
 	<minVersion>2.3</minVersion>
 	<maxVersion>2.3</maxVersion>
 	<updateURL>https://github.com/vimpr/vimperator-plugins/raw/master/vimp_to_android_phone.js</updateURL>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 
 (function() {
 
@@ -32,7 +32,7 @@ var sendToPhone = function(requestURL) {
     'Content-Type': 'application/x-www-form-urlencoded',
     'X-Extension': 'true'
   });
-  req.addEventListener('onSuccess', function(res) {
+  req.addEventListener('success', function(res) {
     var body = res.responseText;
     if (body.substring(0, 2) == 'OK') {
       liberator.echo('Send to phone successed.');
@@ -44,7 +44,7 @@ var sendToPhone = function(requestURL) {
       liberator.open(signOutURL, liberator.NEW_TAB);
     }
   });
-  req.addEventListener('onFailure', function(res) {
+  req.addEventListener('failure', function(res) {
     liberator.echoerr('Send to phone failed.');
   });
   req.get();

@@ -33,7 +33,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 }}} */
 
 // PLUGIN_INFO {{{
-let PLUGIN_INFO =
+let PLUGIN_INFO = xml`
 <VimperatorPlugin>
   <name>Zoom Em All</name>
   <name lang="ja">Zoom Em All</name>
@@ -52,13 +52,12 @@ let PLUGIN_INFO =
   <detail lang="ja"><![CDATA[
     ----
   ]]></detail>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 // }}}
 // INFO {{{
-let INFO =
-<>
+let INFO = xml`
   <plugin name="ZoomEmAll" version="1.1.0"
-          href="http://svn.coderepos.org/share/lang/javascript/vimperator-plugins/trunk/zoom-em-all.js"
+          href="http://github.com/vimpr/vimperator-plugins/blob/master/zoom-em-all.js"
           summary="Zoom or pan for whole firefox."
           lang="en-US"
           xmlns="http://vimperator.org/namespaces/liberator">
@@ -77,7 +76,7 @@ let INFO =
     </item>
   </plugin>
   <plugin name="ZoomEmAll" version="1.1.0"
-          href="http://svn.coderepos.org/share/lang/javascript/vimperator-plugins/trunk/zoom-em-all.js"
+          href="http://github.com/vimpr/vimperator-plugins/blob/master/zoom-em-all.js"
           summary="ブラウザ全体をズーム"
           lang="ja"
           xmlns="http://vimperator.org/namespaces/liberator">
@@ -95,7 +94,7 @@ let INFO =
       </description>
     </item>
   </plugin>
-</>;
+`;
 // }}}
 
 (function () {

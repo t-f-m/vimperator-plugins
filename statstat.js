@@ -33,7 +33,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 }}} */
 
 // PLUGIN_INFO {{{
-let PLUGIN_INFO =
+let PLUGIN_INFO = xml`
 <VimperatorPlugin>
   <name>Stat Stat</name>
   <name lang="ja">すた☆すた</name>
@@ -52,12 +52,12 @@ let PLUGIN_INFO =
     Links:
       http://d.hatena.ne.jp/nokturnalmortum/20081202/1228218135
   ]]></detail>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 // }}}
 // INFO {{{
-let INFO =
+let INFO = xml`
 <plugin name="Stat Stat" version="1.0.4"
-        href="http://svn.coderepos.org/share/lang/javascript/vimperator-plugins/trunk/statstat.js"
+        href="http://github.com/vimpr/vimperator-plugins/blob/master/statstat.js"
         summary="Show information on statusline."
         xmlns="http://vimperator.org/namespaces/liberator">
   <author email="anekos@snca.net">anekos</author>
@@ -74,7 +74,7 @@ let INFO =
       </p>
     </description>
   </item>
-</plugin>;
+</plugin>`;
 // }}}
 
 (function () {

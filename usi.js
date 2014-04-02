@@ -33,9 +33,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 }}} */
 
 // INFO {{{
-let INFO =
-<>
-  <plugin name="usi.js" version="1.3.1"
+let INFO = xml`
+  <plugin name="usi.js" version="1.3.4"
           href="http://vimpr.github.com/"
           summary="for Remember The Milk."
           lang="en-US"
@@ -43,14 +42,19 @@ let INFO =
     <author email="anekos@snca.net">anekos</author>
     <license>New BSD License</license>
     <project name="Vimperator" minVersion="3.0"/>
-    <p>See ( ◕ ‿‿ ◕ ) the completions.</p>
+    <h3>Setup</h3>
+    <p>
+      At first of use, just execute below command and complete authentication.
+      <code>:usi</code>
+    </p>
+    <p>and see ( ◕ ‿‿ ◕ ) the completions.</p>
     <item>
       <tags>:usi</tags>
       <spec>:usi</spec>
       <description><p></p></description>
     </item>
   </plugin>
-</>;
+`;
 // }}}
 
 (function () {
@@ -96,7 +100,7 @@ let INFO =
       get: function (key) let (v = store.get(key)) (v && v.value),
 
       set: function (key, value, age)
-        store.set(key, {value: value, expire: new Date().getTime() + (age || CacheAge)}),
+        store.set(key, {value: value, expire: String(new Date().getTime() + (age || CacheAge))}),
 
       remove: function (key) store.remove(key),
 
@@ -149,7 +153,7 @@ let INFO =
       __iterator__: function () Iterator(data),
 
       push: function (id, desc) {
-        data.push({id: id, desc: desc});
+        data.push({id: String(id), desc: String(desc)});
       },
 
       pop: function (index) {
@@ -333,7 +337,7 @@ let INFO =
                 synchronize: synchronize,
                 onComplete: function (result) {
                   let timeline = result.timeline;
-                  Save.set('timeline', timeline);
+                  Save.set('timeline', timeline.toString());
                   Cow.get.apply(Cow, args);
                 }
               }
@@ -352,7 +356,7 @@ let INFO =
           let text = xhr.responseText.replace(/^<\?[^\?]+\?>/, '');
           let result = toResult(text);
           if (result.@stat == 'ok') {
-            if (!pre)
+            if (!pre && cache)
               Cache.set(cache, text);
             onComplete(result);
           } else {
@@ -447,7 +451,60 @@ let INFO =
         },
         {}
       )
-    } //}}}
+    }, //}}}
+
+    showTasks: Combo(function (c, [lists]) { // {{{
+      Cow.get(
+        {
+          method: 'rtm.lists.getList',
+        },
+        {
+          cache: 'lists.getList',
+          onComplete: function (result) {
+            let table = {};
+            for (let [k, v] in Iterator(result.lists.list))
+              table[v.@id] = v.@name;
+            c.next(table);
+          }
+        }
+      );
+
+      let table = yield;
+
+      Cow.get(
+        {
+          method: 'rtm.tasks.getList',
+          filter: 'status:incomplete'
+        },
+        {
+          cache: 'rtm.tasks.getList?filter=status:incomplete',
+          onComplete: function (result) {
+            let cs = [];
+            for (let [, list] in Iterator(result.tasks.list)) {
+              if (lists && lists.every(function (name) table[list.@id] != name))
+                continue;
+              for (let [, taskseries] in Iterator(list.taskseries)) {
+                for (let [, task] in Iterator(taskseries.task)) {
+                  cs.push([
+                    let (d = Utils.toDate(task.@due))
+                      (d ? d.getTime() : Infinity),
+                    [taskseries.@name, Utils.toSmartDateText(task.@due)]
+                  ]);
+                }
+              }
+            }
+            let n = new Date().getTime();
+            Utils.timeArraySort(cs);
+            let contents = ``;
+            for (let [, [d, [a, b]]] in Iterator(cs)) {
+              let hl = (n - d) > 0 ? 'ErrorMsg' : '';
+              contents += <tr highlight={hl}><td>{a}</td><td>{b}</td></tr>;
+            }
+            liberator.echo(`<table>{contents}</table>`);
+          }
+        }
+      );
+    }), // }}}
   }; // }}}
 
   const CommandOptions = { // {{{
@@ -700,7 +757,7 @@ let INFO =
 
           // FIXME http が補完できない
           let left = args.string.slice(0, context.caret);
-          let m = /(?:^|\s)([#!@=*^]|http)([^#!@=*^]*)$/(left);
+          let m = /(?:^|\s)([#!@=*^]|http)([^#!@=*^]*)$/.exec(left);
           if (m) {
             let completer = SmartAddCompleter[m[1]];
             if (completer) {
@@ -743,7 +800,36 @@ let INFO =
       names: 'p[ostpone]',
       description: 'Postpone a task',
       onComplete: TaskActionOnComplete('Task was postponed')
-    }) // }}}
+    }), // }}}
+    new Command(
+      ['s[how]'],
+      'Show tasks',
+      function (args) {
+        Cow.showTasks(args.length && args);
+      },
+      {
+        completer: function (context, args) {
+          context.incomplete = true;
+
+          Cow.get(
+            {
+              method: 'rtm.lists.getList',
+            },
+            {
+              synchronize: true,
+              cache: 'lists.getList',
+              onComplete: function (result) {
+                context.completions = [
+                  [v.@name, v.@id]
+                  for ([k, v] in Iterator(result.lists.list))
+                ];
+                context.incomplete = false;
+              }
+            }
+          );
+        }
+      }
+    )
   ]; // }}}
 
   TransactionSubCommands = [ // {{{
@@ -790,60 +876,9 @@ let INFO =
     new Command(
       ['t[ask]'],
       'Task control',
-      Combo(function (c, [args]) {
-        Cow.get(
-          {
-            method: 'rtm.lists.getList',
-          },
-          {
-            cache: 'lists.getList',
-            onComplete: function (result) {
-              let table = {};
-              for (let [k, v] in Iterator(result.lists.list))
-                table[v.@id] = v.@name;
-              c.next(table);
-            }
-          }
-        );
-
-        let table = yield;
-
-        Cow.get(
-          {
-            method: 'rtm.tasks.getList',
-            filter: 'status:incomplete'
-          },
-          {
-            cache: 'rtm.tasks.getList?filter=status:incomplete',
-            onComplete: function (result) {
-              let cs = [];
-              let lists = args['-lists'];
-
-              for (let [, list] in Iterator(result.tasks.list)) {
-                if (lists && lists.every(function (name) table[list.@id] != name))
-                  continue;
-                for (let [, taskseries] in Iterator(list.taskseries)) {
-                  for (let [, task] in Iterator(taskseries.task)) {
-                    cs.push([
-                      let (d = Utils.toDate(task.@due))
-                        (d ? d.getTime() : Infinity),
-                      [taskseries.@name, Utils.toSmartDateText(task.@due)]
-                    ]);
-                  }
-                }
-              }
-              let n = new Date().getTime();
-              Utils.timeArraySort(cs);
-              let contents = <></>;
-              for (let [, [d, [a, b]]] in Iterator(cs)) {
-                let hl = (n - d) > 0 ? 'ErrorMsg' : '';
-                contents += <tr highlight={hl}><td>{a}</td><td>{b}</td></tr>;
-              }
-              liberator.echo(<><table>{contents}</table></>);
-            }
-          }
-        );
-      }),
+      function (args) {
+        Cow.showTasks(args['-lists']);
+      },
       {
         options: [CommandOptions.lists],
         subCommands: TaskSubCommands

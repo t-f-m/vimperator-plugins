@@ -33,18 +33,18 @@ THE POSSIBILITY OF SUCH DAMAGE.
 }}} */
 
 // PLUGIN_INFO {{{
-let PLUGIN_INFO =
+let PLUGIN_INFO = xml`
 <VimperatorPlugin>
   <name>Stella</name>
   <name lang="ja">すてら</name>
   <description>For Niconico/YouTube/Vimeo, Add control commands and information display(on status line).</description>
   <description lang="ja">ニコニコ動画/YouTube/Vimeo 用。操作コマンドと情報表示(ステータスライン上に)追加します。</description>
-  <version>0.32.7</version>
+  <version>0.33.2</version>
+
   <author mail="anekos@snca.net" homepage="http://d.hatena.ne.jp/nokturnalmortum/">anekos</author>
   <license>new BSD License (Please read the source code comments of this plugin)</license>
   <license lang="ja">修正BSDライセンス (ソースコードのコメントを参照してください)</license>
   <minVersion>2.0</minVersion>
-  <maxVersion>3.0</maxVersion>
   <updateURL>https://github.com/vimpr/vimperator-plugins/raw/master/stella.js</updateURL>
   <detail><![CDATA[
     == Commands ==
@@ -240,7 +240,7 @@ addLocalMappings(
     == Link ==
       http://d.hatena.ne.jp/nokturnalmortum/20081213/1229168832
   ]]></detail>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 // }}}
 
 /* {{{
@@ -327,7 +327,7 @@ Thanks:
           file.appendRelativePath(U.fixFilename(title) + ext);
 
       if (file.exists())
-        return U.echoerr('The file already exists! -> ' + file.path);
+        return U.echoError('The file already exists! -> ' + file.path);
 
       file = makeFileURI(file);
 
@@ -367,7 +367,7 @@ Thanks:
     },
 
     fixFilename: function (filename) {
-      const badChars = /[\\\/:;*?"<>|]/g;
+      const badChars = /[\\\/:;*?"`|]/g;
       return filename.replace(badChars, '_');
     },
 
@@ -381,11 +381,11 @@ Thanks:
     // 上手い具合に秒数に直すよ
     fromTimeCode: function (code, max) {
       var m;
-      if (max && (m = /^(-?\d+(?:\.\d)?)%/(code)))
+      if (max && (m = /^(-?\d+(?:\.\d)?)%/.exec(code)))
         return Math.round(max * (parseFloat(m[1]) / 100));
-      if (m = /^(([-+]?)\d+):(\d+)$/(code))
+      if (m = /^(([-+]?)\d+):(\d+)$/.exec(code))
         return parseInt(m[1], 10) * 60 + (m[2] == '-' ? -1 : 1) * parseInt(m[3], 10);
-      if (m = /^([-+]?\d+\.\d+)$/(code))
+      if (m = /^([-+]?\d+\.\d+)$/.exec(code))
         return Math.round(parseFloat(m[1]) * 60);
       return parseInt(code, 10);
     },
@@ -827,6 +827,71 @@ Thanks:
   // }}}
 
   /*********************************************************************************
+  * VideoPlayer                                                                  {{{
+  *********************************************************************************/
+
+  function VideoPlayer () {
+    Player.apply(this, arguments);
+  }
+
+  VideoPlayer.prototype = {
+    __proto__: Player.prototype,
+
+    functions: {
+      currentTime: 'rw',
+      fetch: '',
+      fileURL: '',
+      makeURL: '',
+      muted: 'rw',
+      pageinfo: '',
+      pause: 'x',
+      play: 'x',
+      playEx: 'x',
+      playOrPause: 'x',
+      relations: '',
+      title: '',
+      totalTime: 'r',
+      volume: 'rw',
+      quality: '',
+      qualities: ''
+    },
+
+    icon: 'TODO',
+
+    get currentTime () parseInt(this.player.currentTime),
+    set currentTime (value) (this.player.currentTime = value),
+
+    get muted () this.player.muted,
+    set muted (value) (this.player.muted = value),
+
+    get player ()
+      content.document.querySelector('video'),
+
+    get ready () !!this.player,
+
+    get state () {
+      if (this.player.ended)
+        return Player.ST_ENDED;
+      if (this.player.paused)
+        return Player.ST_PAUSED;
+      return Player.ST_PLAYING;
+    },
+
+    get totalTime () parseInt(this.player.duration),
+
+    get isValid () false,
+
+    get volume () parseInt(this.player.volume * 100),
+    set volume (value) (this.player.volume = value / 100),
+
+    play: function () this.player.play(),
+
+    pause: function () this.player.pause()
+  };
+
+  // }}}
+
+  /*********************************************************************************
   * YouTubePlayer                                                                {{{
   *********************************************************************************/
 
@@ -835,7 +900,7 @@ Thanks:
   }
 
   YouTubePlayer.getIDfromURL = function (url) let ([_, r] = url.match(/[?;&]v=([-\w]+)/)) r;
-  YouTubePlayer.isVideoURL = function (url) /^https?:\/\/(www\.)?youtube\.com\/watch\?.+/(url);
+  YouTubePlayer.isVideoURL = function (url) /^https?:\/\/(www\.)?youtube\.com\/watch\?.+/.test(url);
 
   YouTubePlayer.prototype = {
     __proto__: Player.prototype,
@@ -892,7 +957,7 @@ Thanks:
         [
           'tags',
           XMLList([
-            <span>[<a href={v.href}>{v.textContent}</a>]</span>
+            xml`<span>[<a href=${v.href}>${v.textContent}</a>]</span>`
             for ([, v] in Iterator(doc.querySelectorAll('#eow-tags > li > a')))
           ].join(''))
         ],
@@ -923,11 +988,12 @@ Thanks:
         let url = item.querySelector('a').href;
         if (!YouTubePlayer.isVideoURL(url))
           continue;
+        let id = YouTubePlayer.getIDfromURL(url);
         result.push(
           new RelatedID(
-            YouTubePlayer.getIDfromURL(url),
+            id,
             item.querySelector('span.title').textContent,
-            item.querySelector('img').src
+            'http://img.youtube.com/vi/' + id + '/1.jpg'
           )
         );
       }
@@ -958,7 +1024,7 @@ Thanks:
 
     get totalTime () parseInt(this.player.getDuration()),
 
-    get isValid () U.currentURL.match(/^http:\/\/(?:[^.]+\.)?youtube\.com\/watch/),
+    get isValid () (this.player && U.currentURL.match(/^https?:\/\/(?:[^.]+\.)?youtube\.com\/watch/)),
 
     get volume () parseInt(this.player.getVolume()),
     set volume (value) (this.player.setVolume(value), this.volume),
@@ -966,9 +1032,13 @@ Thanks:
     fetch: function (filepath) {
       // all(1080p,720p,480p,360p) -> 37, 22, 35, 34, 5
       // FIXME 一番初めが最高画質だと期待
-      let cargs = content.wrappedJSObject.yt.config_.PLAYER_CONFIG.args;
-      let url = decodeURIComponent(cargs.fmt_url_map.split(',')[0].split('|')[1]);
-      U.download(url, filepath, '.flv', this.title);
+      let cargs = content.wrappedJSObject.yt.playerConfig.args;
+      cargs.url_encoded_fmt_stream_map.split(',')[0].split('&').forEach(function(x) {
+        let [key, val] = x.split('=');
+        if (key == 'url') {
+          U.download(decodeURIComponent(val), filepath, '.flv', this.title);
+        }
+      }, this);
     },
 
     makeURL: function (value, type) {
@@ -991,6 +1061,141 @@ Thanks:
   // }}}
 
   /*********************************************************************************
+  * YouTubePlayer5                                                               {{{
+  *********************************************************************************/
+
+  function YouTubePlayer5 (stella) {
+    Player.apply(this, arguments);
+    this._player = new VideoPlayer(stella);
+  }
+
+  YouTubePlayer5.prototype = {
+    __proto__: YouTubePlayer.prototype,
+
+    functions: {
+      currentTime: 'rw',
+      fetch: 'x',
+      fileURL: 'r',
+      makeURL: 'x',
+      muted: 'rwt',
+      pageinfo: 'r',
+      pause: 'x',
+      play: 'x',
+      playEx: 'x',
+      playOrPause: 'x',
+      relations: 'r',
+      title: 'r',
+      totalTime: 'r',
+      volume: 'rw',
+      quality: 'rw',
+      qualities: 'r'
+    },
+
+    icon: 'http://www.youtube.com/favicon.ico#hoge',
+
+    get fileExtension () '.mp4',
+
+    get fileURL ()
+      let (as = content.document.defaultView.wrappedJSObject.swfArgs)
+        ('http://www.youtube.com/get_video?fmt=22&video_id=' + as.video_id + '&t=' + as.t),
+
+    get id ()
+      YouTubePlayer.getIDfromURL(U.currentURL),
+
+    get pageinfo () {
+      let doc = content.document;
+      let desc = doc.querySelector('#eow-description');
+      return [
+        [
+          'comment',
+          desc ? desc.textContent.trim() : ''
+        ],
+        [
+          'tags',
+          XMLList([
+            xml`<span>[<a href=${v.href}>${v.textContent}</a>]</span>`
+            for ([, v] in Iterator(doc.querySelectorAll('#eow-tags > li > a')))
+          ].join(''))
+        ],
+        [
+          'quality',
+          this.quality
+        ]
+      ];
+    },
+
+    get player () this._player,
+
+    get quality () this.player.getPlaybackQuality(),
+    set quality (value) this.player.setPlaybackQuality(value),
+
+    get qualities () this.player.getAvailableQualityLevels(),
+
+    get ready () !!this.player,
+
+    get relations () {
+      let result = [];
+      let doc = content.document;
+      for each (let item in Array.slice(doc.querySelectorAll('#watch-tags > div > a'))) {
+        result.push(new RelatedTag(item.textContent));
+      }
+      for each (let item in Array.slice(doc.querySelectorAll('.video-list-item'))) {
+        let url = item.querySelector('a').href;
+        if (!YouTubePlayer.isVideoURL(url))
+          continue;
+        let id = YouTubePlayer.getIDfromURL(url);
+        result.push(
+          new RelatedID(
+            id,
+            item.querySelector('span.title').textContent,
+            'http://img.youtube.com/vi/' + id + '/1.jpg'
+          )
+        );
+      }
+      return result;
+    },
+
+    get title ()
+      content.document.title.replace(/^YouTube - /, ''),
+
+    fetch: function (filepath) {
+      // all(1080p,720p,480p,360p) -> 37, 22, 35, 34, 5
+      // FIXME 一番初めが最高画質だと期待
+      let cargs = content.wrappedJSObject.yt.playerConfig.args;
+      cargs.url_encoded_fmt_stream_map.split(',')[0].split('&').forEach(function(x) {
+        let [key, val] = x.split('=');
+        if (key == 'url') {
+          U.download(decodeURIComponent(val), filepath, '.flv', this.title);
+        }
+      }, this);
+    },
+
+    makeURL: function (value, type) {
+      switch (type) {
+        case Player.URL_ID:
+          return 'http://www.youtube.com/watch?v=' + value;
+        case Player.URL_TAG:
+          return 'http://www.youtube.com/results?search=tag&search_query=' + encodeURIComponent(value);
+        case Player.URL_SEARCH:
+          return 'http://www.youtube.com/results?search_query=' + encodeURIComponent(value);
+      }
+      return value;
+    },
+  };
+
+  'play pause currentTime muted state totalTime volume'.split(/\s+/).forEach(function (name) {
+    let getter = VideoPlayer.prototype.__lookupGetter__(name);
+    let setter = VideoPlayer.prototype.__lookupSetter__(name);
+    let value = !(getter || setter);
+    if (getter || value)
+      YouTubePlayer5.prototype.__defineGetter__(name, function () this.player[name]);
+    if (setter || value)
+      YouTubePlayer5.prototype.__defineSetter__(name, function (value) (this.player[name] = value));
+  });
+
+  // }}}
+
+  /*********************************************************************************
   * YouTubeUserChannelPlayer                                                                {{{
   *********************************************************************************/
 
@@ -999,7 +1204,7 @@ Thanks:
   }
 
   YouTubeUserChannelPlayer.getIDfromURL = function (url) let ([_, r] = url.match(/\/([^\/]+)($|[\?]+)/)) r;
-  YouTubeUserChannelPlayer.isVideoURL = function (url) /^https?:\/\/(www\.)?youtube\.com\/watch\?.+/(url);
+  YouTubeUserChannelPlayer.isVideoURL = function (url) /^https?:\/\/(www\.)?youtube\.com\/watch\?.+/.test(url);
 
   YouTubeUserChannelPlayer.prototype = {
     __proto__: YouTubePlayer.prototype,
@@ -1135,21 +1340,27 @@ Thanks:
     get pageinfo () {
       let v = content.wrappedJSObject.Video;
       return [
-        ['thumbnail', <img src={v.thumbnail} />],
+        ['thumbnail', xml`<img src=${v.thumbnail} />`],
         ['comment', U.toXML(v.description)],
         [
           'tag',
           [
-            <span>[<a href={this.makeURL(t, Player.URL_TAG)}>{t}</a>]</span>
+            xml`<span>[<a href=${this.makeURL(t, Player.URL_TAG)}>${t}</a>]</span>`
             for each (t in Array.slice(v.tags))
           ].join('')
         ]
       ];
     },
 
-    get player () content.document.getElementById('flvplayer').wrappedJSObject.__proto__,
+    get player () {
+      return (
+        U.getElementById('flvplayer')
+        ||
+        U.getElementById('external_nicoplayer')
+      ).wrappedJSObject.__proto__;
+    },
 
-    get playerContainer () U.getElementByIdEx('flvplayer_container'),
+    // get playerContainer () U.getElementByIdEx('flvplayer_container'),
 
     get ready () {
       try {
@@ -1657,6 +1868,7 @@ Thanks:
       this.players = {
         niconico: new NicoPlayer(this.stella),
         youtube: new YouTubePlayer(this.stella),
+        youtube5: new YouTubePlayer5(this.stella),
         youtubeuc: new YouTubeUserChannelPlayer(this.stella),
         vimeo: new VimeoPlayer(this.stella)
       };
@@ -1798,7 +2010,7 @@ Thanks:
               return U.raiseNotSupportedPage();
 
             let arg = args.literalArg;
-            let index = (/^\d+:/)(arg) && parseInt(arg, 10);
+            let index = /^\d+:/.test(arg) && parseInt(arg, 10);
             if (index > 0)
               arg = lastCompletions[index - 1].command;
             let url = self.player.has('makeURL', 'x') ? makeRelationURL(self.player, arg) : arg;
@@ -1822,7 +2034,7 @@ Thanks:
               context.process = [
                 process[0],
                 function (item, text)
-                  (item.thumbnail ? <><img src={item.thumbnail} style="margin-right: 0.5em; height: 3em;"/>{text}</>
+                  (item.thumbnail ? `<img src={item.thumbnail} style="margin-right: 0.5em; height: 3em;"/>{text}`
                                   : process[1].apply(this, arguments))
               ];
               lastCompletions = self.player.relations;
@@ -1843,7 +2055,7 @@ Thanks:
         function (verbose)
           (self.isValid && self.player.has('pageinfo', 'r')
             ? [
-                [n, <div style="white-space: normal">{modules.template.maybeXML(v)}</div>]
+                [n, xml`<div style="white-space: normal">${modules.template.maybeXML(v)}</div>`]
                 for each ([n, v] in self.player.pageinfo)
               ]
             : [])

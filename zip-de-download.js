@@ -1,12 +1,12 @@
-let INFO =
-<plugin name="zip-de-download" version="0.7.0"
+let INFO = xml`
+<plugin name="zip-de-download" version="0.7.1"
         href=""
         summary="ZIPでダウンロードするお"
         xmlns="http://vimperator.org/namespaces/liberator">
   <author email="teramako@gmail.com">teramako</author>
   <license href="http://opensource.org/licenses/mit-license.php">MIT</license>
   <project name="Vimperator" minVersion="2.3"/>
-  <p xmlns={XHTML}>
+  <p xmlns=${XHTML}>
     特定ページの画像とかのURLを取ってきて一気にZIPにしてダウンロードするお
     <code style='font-family: sans-serif !important;'><![CDATA[
 　　　　　　　　　　　　 ／）
@@ -17,7 +17,7 @@ let INFO =
 　　　　／　 　,i　　　,二ﾆ⊃（ ●）.　（●）＼
 　　　/　 　　ﾉ　　　 ilﾞフ::::::⌒（__人__）⌒::::: ＼
 　　　　　　,ｲ｢ﾄ､　　,!,!|　　　　　|r┬-|　　　　　|
-　　　　　/　iﾄヾヽ_/ｨ"＼ 　　 　 `ー'´ 　 　 ／
+　　　　　/　iﾄヾヽ_/ｨ"＼ 　　 　 \`ー'´ 　 　 ／
     ]]></code>
   </p>
   <item>
@@ -74,7 +74,7 @@ let INFO =
       </p>
     </description>
   </item>
-</plugin>;
+</plugin>`;
 
 // FIXME: 将来的には、storageに入れるべき
 // FIXME: あと、それぞれダウンロード先を指定できた方が良い(?)
@@ -176,7 +176,7 @@ let SITE_INFO = [
 
       // 連番かもしれない id は無視する
       let id = elem.getAttribute('id');
-      if (id && !/\d/(id))
+      if (id && !/\d/.test(id))
         return 'id("' + id + '")';
 
       return getXPath(elem.parentNode) + '/' + elem.tagName.toLowerCase();
@@ -186,7 +186,7 @@ let SITE_INFO = [
 
     let links =
       Array.slice( content.document.querySelectorAll('a')).filter(
-        function (link) (link.href && extPattern(link.href)));
+        function (link) (link.href && extPattern.test(link.href)));
 
     let xs = {};
     for each(let link in links){
@@ -205,12 +205,12 @@ let SITE_INFO = [
     return result;
   }
   function extensionValidator(vs)
-    vs && vs.every(function (v) /^[\da-zA-Z]+$/(v));
+    vs && vs.every(function (v) /^[\da-zA-Z]+$/.test(v));
 
   let self = {
     downloadZip: function(path, urls, comment, isAppend){
       let zipW = new zipWriter();
-      let urls = [url for each(url in urls)];
+      urls = [url for each(url in urls)];
       liberator.assert(urls.length > 0, "None of URLs");
 
       if (!(/\.zip$/i).test(path)){
@@ -232,7 +232,7 @@ let SITE_INFO = [
         try {
           let stream = ch.open();
           let entryName = ("000" + ++i).slice(-3) + "-" + getEntryName(ch.URI, ch.contentType);
-          liberator.echomsg("zip: " + url + " to " + entryName, 3);
+          liberator.echomsg("zip: " + url + " to " + entryName, commandline.FORCE_SINGLELINE);
           zipW.addEntryStream(entryName, Date.now() * 1000, Ci.nsIZipWriter.COMPRESSION_DEFAULT, stream, false);
         } catch (e) {
           // XXX エラー分を通知すべき？
@@ -320,20 +320,22 @@ let SITE_INFO = [
       }
       if ("-list" in arg){
         let [file, urls, comment] = self.download(arg[0], true, option);
-        let xml = <>
+        let xml = `
           <h1><span>Download :</span><span>{file.path}</span></h1>
           <p>{comment}</p>
           <ol>
             {liberator.modules.template.map(urls, function(url) <li>{url}</li>)}
           </ol>
           <br/>
-        </>;
+        `;
         liberator.echo(xml, true);
         return;
       }
       liberator.echo("Started DownloadZip");
-      let zipFile = self.download(arg[0], false, option);
-      liberator.echo("Completed DownloadZip: " + zipFile.path);
+      setTimeout(function () {
+        let zipFile = self.download(arg[0], false, option);
+        liberator.echo("Completed DownloadZip: " + zipFile.path);
+      }, 0);
     }, {
       argCount: "?",
       literal: true,
@@ -348,6 +350,8 @@ let SITE_INFO = [
       completer: liberator.modules.completion.file
     }, true);
 
-  util.extend(__context__, self);
+  for (let [k, v] in Iterator(self)) {
+    __context__[k] = v;
+  }
 })();
 // vim: sw=2 ts=2 et:

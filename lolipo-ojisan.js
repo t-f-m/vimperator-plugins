@@ -33,7 +33,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 }}} */
 
 // PLUGIN_INFO {{{
-let PLUGIN_INFO =
+let PLUGIN_INFO = xml`
 <VimperatorPlugin>
   <name>lolipo-ojisan</name>
   <name lang="ja">ロリポおじさん</name>
@@ -58,13 +58,12 @@ let PLUGIN_INFO =
         ロリポおじさんに話しかけます。
         [message] を省略すると、魅惑のチャットモードが始まります。
   ]]></detail>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 // }}}
 // INFO {{{
-let INFO =
-<>
+let INFO = xml`
   <plugin name="lolipo-ojisan" version="1.0.1"
-          href="http://svn.coderepos.org/share/lang/javascript/vimperator-plugins/trunk/lolipo-ojisan.js"
+          href="http://github.com/vimpr/vimperator-plugins/blob/master/lolipo-ojisan.js"
           summary="Chat with lolipo-ojisan."
           lang="en-US"
           xmlns="http://vimperator.org/namespaces/liberator">
@@ -82,7 +81,7 @@ let INFO =
     </item>
   </plugin>
   <plugin name="lolipo-ojisan" version="1.0.1"
-          href="http://svn.coderepos.org/share/lang/javascript/vimperator-plugins/trunk/lolipo-ojisan.js"
+          href="http://github.com/vimpr/vimperator-plugins/blob/master/lolipo-ojisan.js"
           summary="ロリポおじさんとチャットしよう"
           lang="ja"
           xmlns="http://vimperator.org/namespaces/liberator">
@@ -99,7 +98,7 @@ let INFO =
       </p></description>
     </item>
   </plugin>
-</>;
+`;
 // }}}
 
 
@@ -152,10 +151,10 @@ let INFO =
         let you = getContent('.you > div > div > p');
         let ojisan = getContent('.ojisan > div > div > p');
 
-        liberator.echo(<>
+        liberator.echo(`
           <dt>&#x3042;&#x306A;&#x305F;</dt><dd>{you}</dd>
           <dt>&#x30ED;&#x30EA;&#x30DD;&#x304A;&#x3058;&#x3055;&#x3093;</dt><dd>{ojisan}</dd>
-        </>);
+        `);
         after && after();
       }
     );

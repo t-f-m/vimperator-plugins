@@ -5,7 +5,7 @@
   http://www.gnu.org/copyleft/gpl.html
 }}}  END LICENSE BLOCK ***/
 // PLUGIN_INFO//{{{
-var PLUGIN_INFO =
+var PLUGIN_INFO = xml`
 <VimperatorPlugin>
   <name>nextlink</name>
   <description>mapping "[[", "]]" by AutoPagerize XPath.</description>
@@ -62,7 +62,7 @@ n:
 
 == TODO ==
   ]]></detail>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 //}}}
 liberator.plugins.nextlink = (function() {
 
@@ -112,7 +112,7 @@ var actpattern = liberator.globalVariables.nextlink_nositeinfo_act || "e";
 var nositeinfoAct = nositeinfoActions[actpattern];
 
 
-var localSiteinfo = storage.newMap("nextlink-local-siteinfo", false);
+var localSiteinfo = storage.newMap("nextlink-local-siteinfo", {store: false});
 if (localSiteinfo)
   localSiteinfo = [ info for ([ i, info ] in localSiteinfo) ];
 
@@ -264,9 +264,9 @@ Autopager.prototype = {
       return true;
     }
 
-    req.addEventListener("onSuccess", $U.bind(this, this.onSuccess));
-    req.addEventListener("onFailure", $U.bind(this, this.onFailure));
-    req.addEventListener("onException", $U.bind(this, this.onFailure));
+    req.addEventListener("success", $U.bind(this, this.onSuccess));
+    req.addEventListener("failure", $U.bind(this, this.onFailure));
+    req.addEventListener("exception", $U.bind(this, this.onFailure));
     req.get();
   },
   onSuccess: function(res) {

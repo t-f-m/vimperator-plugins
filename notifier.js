@@ -5,7 +5,7 @@
   http://www.opensource.jp/licenses/mit-license.html
 }}}  END LICENSE BLOCK ***/
 // PLUGIN_INFO//{{{
-var PLUGIN_INFO =
+var PLUGIN_INFO = xml`
 <VimperatorPlugin>
   <name>{NAME}</name>
   <description>change notice framework.</description>
@@ -122,7 +122,7 @@ buildMessages(diff):
   this.diff() により抽出されたオブジェクトを元に、liberator.plugins.notifier.Message のインスタンス、
   または、その配列を返却して下さい。
   ]]></detail>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 //}}}
 (function() {
 if (!liberator.plugins.libly) {
@@ -255,14 +255,14 @@ function bootstrap() {
         this.options.headers,
         $U.extend({ asynchronous: true }, this.options.extra)
       );
-      req.addEventListener("onSuccess", $U.bind(this, function(res) {
+      req.addEventListener("success", $U.bind(this, function(res) {
         logger.log("initialized");
         if (typeof this.parse == "function") this.cache = this.parse(res);
         if (this.cache)
           this.initialized = true;
       }));
-      req.addEventListener("onFailure", function(res) { logger.log(res); });
-      req.addEventListener("onException", function(res) { logger.log(res); });
+      req.addEventListener("failure", function(res) { logger.log(res); });
+      req.addEventListener("exception", function(res) { logger.log(res); });
       if (this.method == "POST")
         req.post();
       else
@@ -277,7 +277,7 @@ function bootstrap() {
         this.options.headers,
         $U.extend({ asynchronous: true }, this.options.extra)
       );
-      req.addEventListener("onSuccess", $U.bind(this, function(res) {
+      req.addEventListener("success", $U.bind(this, function(res) {
         var parsed, diff;
         if (typeof this.parse == "function") parsed = this.parse(res);
         if (parsed && typeof this.diff == "function") diff = this.diff(this.cache, parsed);

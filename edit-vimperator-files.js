@@ -33,10 +33,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 }}} */
 
 // INFO {{{
-let INFO =
-<>
+let INFO = xml`
   <plugin name="EditVimperatorFile" version="1.2.3"
-          href="http://svn.coderepos.org/share/lang/javascript/vimperator-plugins/trunk/edit-vimperator-files.js"
+          href="http://github.com/vimpr/vimperator-plugins/blob/master/edit-vimperator-files.js"
           summary="Open vimperator files with text-editor."
           lang="en-US"
           xmlns="http://vimperator.org/namespaces/liberator">
@@ -51,7 +50,7 @@ let INFO =
     </item>
   </plugin>
   <plugin name="EditVimperatorFile" version="1.2.3"
-          href="http://svn.coderepos.org/share/lang/javascript/vimperator-plugins/trunk/edit-vimperator-files.js"
+          href="http://github.com/vimpr/vimperator-plugins/blob/master/edit-vimperator-files.js"
           summary="Vimperator 関連のファイルをエディタで開く"
           lang="ja"
           xmlns="http://vimperator.org/namespaces/liberator">
@@ -65,7 +64,7 @@ let INFO =
       <spec>:edit <a>file</a></spec>
     </item>
   </plugin>
-</>;
+`;
 // }}}
 
 
@@ -99,7 +98,7 @@ let INFO =
           [
             [file.path, dir]
             for ([, file] in Iterator(io.File(dir).readDirectory(false)))
-            if (file.isFile() && /^[\._]vimperatorrc|\.(js|vimp|css)$/(file.leafName))
+            if (file.isFile() && /^[\._]vimperatorrc|\.(js|vimp|css)$/.test(file.leafName))
           ]
           for ([, dir] in Iterator(dirs))
         ]);

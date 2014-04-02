@@ -33,7 +33,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 }}} */
 
 // PLUGIN_INFO {{{
-let PLUGIN_INFO =
+let PLUGIN_INFO = xml`
 <VimperatorPlugin>
   <name>Read Cat Later</name>
   <description>Read it later</description>
@@ -73,7 +73,7 @@ let PLUGIN_INFO =
     == Link ==
        http://d.hatena.ne.jp/nokturnalmortum/20080918#1221729188
   ]]></detail>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 // }}}
 
 (function () {
@@ -147,12 +147,11 @@ let PLUGIN_INFO =
   const history = Cc["@mozilla.org/browser/nav-history-service;1"].
                     getService(Ci.nsINavHistoryService);
 
-  let [folderId, folderGUID] = [prefs.get('folderId', false), prefs.get('folderGUID', false)];
+  let folderId = prefs.get('folderId', false);
 
-  if (!(folderGUID && folderId && (folderId == bookmarks.getItemIdForGUID(folderGUID)))) {
+  if (!folderId) {
     folderId = bookmarks.createFolder(bookmarks.toolbarFolder, FOLDER_NAME, bookmarks.DEFAULT_INDEX);
     prefs.set('folderId', folderId);
-    prefs.set('folderGUID', bookmarks.getItemGUID(folderId));
   }
 
   /*

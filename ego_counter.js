@@ -16,7 +16,7 @@
   let update = function(color) {
     myHatebu.setAttribute(
       'src',
-      <>http://b.hatena.ne.jp/bc/{color}/{MY_SITE}/</>.toSource()
+      `http://b.hatena.ne.jp/bc/{color}/{MY_SITE}/`.toSource()
     );
   };
 
@@ -33,10 +33,9 @@
     };
   })();
 
-  let myHatebu = document.getElementById('status-bar')
-                 .insertBefore(document.createElement('statusbarpanel'),
-                               document.getElementById('security-button')
-                               .nextSibling);
+  let myHatebu = document.getElementById('status-bar').appendChild(
+                    document.createElement('statusbarpanel')
+                 );
   myHatebu.setAttribute('id', 'my-hatebu-count-icon');
   myHatebu.setAttribute('class', 'statusbarpanel-iconic');
   update(rotate(true));
@@ -47,3 +46,5 @@
   }, false);
 
 })()
+
+// vim: sw=2 ts=2 et:

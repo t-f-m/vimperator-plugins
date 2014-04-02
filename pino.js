@@ -30,7 +30,7 @@
 //
 // }}}
 // PLUGIN INFO: {{{
-var PLUGIN_INFO =
+var PLUGIN_INFO = xml`
 <VimperatorPlugin>
   <name>{NAME}</name>
   <description>Open livedoor Reader pinned items</description>
@@ -142,7 +142,7 @@ var PLUGIN_INFO =
       linkに該当するピンを一覧から削除する。
 
   ]]></detail>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 // }}}
 let self = liberator.plugins.pino = (function() {
   // COMMAND /////////////////////////////////////////////////////// {{{
@@ -159,13 +159,13 @@ let self = liberator.plugins.pino = (function() {
 
       if (args["-list"]) {
         //let items = pins.items();
-        let list = <div>{items.length} items.
+        let list = xml`<div>{items.length} items.
                     <ul>{
                       [<li><a href={i.link}>{i.title}</a><br/></li>
                         for each (i in items)
                       ].reduce(function(a, b) a + b)
                     }</ul>
-                   </div>;
+                   </div>`;
         liberator.echo(list, commandline.FORCE_MULTILINE);
         return;
       }
@@ -259,10 +259,10 @@ let self = liberator.plugins.pino = (function() {
         }
       );
 
-      request.addEventListener("onSuccess", function(data) {
+      request.addEventListener("success", function(data) {
         liberator.log("Removed pin from '" + link + "' was succeeded.");
       });
-      request.addEventListener("onFailure", function(data) {
+      request.addEventListener("failure", function(data) {
         liberator.echoerr("Cannot remove pin");
       });
       request.post();
@@ -279,14 +279,14 @@ let self = liberator.plugins.pino = (function() {
           }
       );
 
-      request.addEventListener("onSuccess", function(data) {
+      request.addEventListener("success", function(data) {
         if (isLoginPage(data)) {
           liberator.echoerr("Can't get pinned list. Maybe you should login to livedoor.");
           return;
         }
         result = unentifyObjectValues(liberator.eval(data.responseText));
       });
-      request.addEventListener("onFailure", function(data) {
+      request.addEventListener("failure", function(data) {
         liberator.echoerr("Can't get pinned list!!!");
       });
       request.post();

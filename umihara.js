@@ -1,5 +1,5 @@
 /* {{{
-Copyright (c) 2008, anekos.
+Copyright (c) 2008-2011, anekos.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -33,13 +33,13 @@ THE POSSIBILITY OF SUCH DAMAGE.
 }}} */
 
 // PLUGIN_INFO {{{
-let PLUGIN_INFO =
+let PLUGIN_INFO = xml`
 <VimperatorPlugin>
   <name>Exchange Converter</name>
   <name lang="ja">外国為替換算</name>
   <description>for exchangeconvertion</description>
   <description lang="ja">為替換算をします</description>
-  <version>1.1.1</version>
+  <version>1.1.2</version>
   <author mail="anekos@snca.net" homepage="http://d.hatena.ne.jp/nokturnalmortum/">anekos</author>
   <license>new BSD License (Please read the source code comments of this plugin)</license>
   <license lang="ja">修正BSDライセンス (ソースコードのコメントを参照してください)</license>
@@ -61,6 +61,8 @@ let PLUGIN_INFO =
         let g:umihara_default_source="USD"
         let g:umihara_default_target="JPY"
       ||<
+    == Require ==
+      _libly.js
   ]]></detail>
   <detail lang="ja"><![CDATA[
     == Usage ==
@@ -81,16 +83,16 @@ let PLUGIN_INFO =
           let g:umihara_default_source="USD"
           let g:umihara_default_target="JPY"
         ||<
+    == Require ==
+      _libly.js
   ]]></detail>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 // }}}
 
 (function () {
 
   const defaultSource = liberator.globalVariables.umihara_default_source || 'USD';
   const defaultTarget = liberator.globalVariables.umihara_default_target || 'JPY';
-
-  const re = /<td nowrap>(\d+:\d+)<\/td><td>([\d,]+\.[\d,]+)<\/td><td><b>([\d,]+\.[\d,]+)<\/b><\/td><\/tr><\/table><\/div>/;
 
   const ContryCodes = [
     ['USD', '\u30a2\u30e1\u30ea\u30ab\u30c9\u30eb'],
@@ -135,30 +137,39 @@ let PLUGIN_INFO =
   ];
 
   function echo (msg) {
-    liberator.echo(<pre>{msg}</pre>);
+    liberator.echo(xml`<pre>${msg}</pre>`);
   }
 
-  let resultBuffer = '';
-
   function kawase (value, clipboard, from, to) {
+    let resultBuffer = '';
+
     [from, to] = [from || defaultSource, to || defaultTarget].map(function (it) it.toUpperCase());
     if (from == '-')
       from = defaultSource;
     if (to == '-')
       to = defaultTarget;
-    let url = 'http://quote.yahoo.co.jp/m5?a=' + value + '&s=' + from + '&t=' + to;
+    //let url = 'http://quote.yahoo.co.jp/m5?a=' + value + '&s=' + from + '&t=' + to;
+    let url = 'http://info.finance.yahoo.co.jp/exchange/convert/?a=' + value + '&s=' + from + '&t=' + to;
     var req = new XMLHttpRequest();
     req.open('GET', url);
     req.onreadystatechange = function (aEvt) {
       if (req.readyState == 4 && req.status == 200) {
-        let m = req.responseText.match(re);
-        if (m) {
+        let html = req.responseText;
+        let doc = plugins.libly.$U.createHTMLDocument(html);
+        let a = doc.querySelector('tbody > tr > td > a[href^="http://rdsig.yahoo.co.jp"]');
+        if (a) {
+          let tr = a.parentNode.parentNode;
+          liberator.__tr = tr;
+          let toValue = tr.querySelectorAll('td')[3].textContent;
+          let rateTime = tr.querySelectorAll('td')[2].textContent.match(/([\d,]+\.[\d,]+)[^\d]*(\d+:\d+)/);
+          let rate = rateTime[1];
+          let time = rateTime[2];
           let text = from + ' -> ' + to +
                      '\n ' + from + ': ' + value +
-                     '\n ' + to + ': ' + m[3] +
-                     '\n rate: ' + m[2] +
-                     '\n time: ' + m[1];
-          echo(text);
+                     '\n ' + to + ': ' + toValue +
+                     '\n rate: ' + rate +
+                     '\n time: ' + time;
+          echo('<<Results>>\n' + text);
           if (clipboard) {
             resultBuffer += text + '\n';
             util.copyToClipboard(resultBuffer);
@@ -171,9 +182,17 @@ let PLUGIN_INFO =
     req.send(null);
   }
 
+  function evalValue (value) {
+    let sandbox = new Cu.Sandbox('about:blank');
+    return Cu.evalInSandbox(value, sandbox);
+  }
+
   let extra = {
     argCount: '+',
     bang: true,
+    options: [
+      [['-clipboard', '-c'], commands.OPTION_NOARG],
+    ],
     completer: function (context, args) {
       if (args.length == 1) {
         // TODO - history
@@ -190,22 +209,16 @@ let PLUGIN_INFO =
     ['kawase'],
     'Umihara Kawase Meow',
     function (args) {
-      let as = args;
-      resultBuffer = '';
-      liberator.echo('<<Results>>\n')
-      if (as.length == 0)
-        as.push('1');
-      while (as.length < 3)
-        as.push('-');
-      for (let i = 1, l = as.length - 1; i < l; i++) {
-        let [value, from, to] = [as[0], as[i], l == i ? '-' : as[l]];
-        liberator.log({
-          value: value,
-          from: from,
-          to: to
-        })
-        value = eval(value);
-        kawase(value, args.bang, from, to);
+      if (args.length == 0)
+        args.push('1');
+
+      while (args.length < 3)
+        args.push('-');
+
+      for (let i = 1, l = args.length - 1; i < l; i++) {
+        let [value, from, to] = [args[0], args[i], l == i ? '-' : args[l]];
+        value = evalValue(value);
+        kawase(value, args['-clipboard'] || args.bang, from, to);
       }
     },
     extra,

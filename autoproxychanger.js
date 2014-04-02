@@ -1,4 +1,4 @@
-var PLUGIN_INFO =
+var PLUGIN_INFO = xml`
 <VimperatorPlugin>
   <name>autoproxychanger</name>
   <description>setting proxy</description>
@@ -50,7 +50,7 @@ var PLUGIN_INFO =
       EOM
       ||<
   ]]></detail>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 
 liberator.plugins.AutoProxyChanger = (function() {
 var gVar = liberator.globalVariables;
@@ -97,7 +97,7 @@ const DISABLE_ICON = 'data:image/png;base64,'
 
 var acmanager = [];
 
-const prefkeys = ['ftp','gopher','http','ssl'];
+const prefkeys = ['ftp','gopher','http','ssl', 'socks'];
 var prevSetting = null;
 var _isEnable = false;
 var exec = (function(){

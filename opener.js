@@ -1,5 +1,5 @@
 // PLUGIN_INFO {{{
-let PLUGIN_INFO =
+let PLUGIN_INFO = xml`
 <VimperatorPlugin>
   <name>opener</name>
   <name lang="ja">opener</name>
@@ -17,13 +17,12 @@ let PLUGIN_INFO =
   <detail lang="ja"><![CDATA[
     URL 移動時にそのURLが既に開かれていたら、そのタブに移動する
   ]]></detail>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 // }}}
 // INFO {{{
-let INFO =
-<>
+let INFO = xml`
   <plugin name="opener" version="1.0.0"
-          href="http://svn.coderepos.org/share/lang/javascript/vimperator-plugins/trunk/opener.js"
+          href="http://github.com/vimpr/vimperator-plugins/blob/master/opener.js"
           summary="URL 移動時にそのURLが既に開かれていたら、そのタブに移動する"
           xmlns="http://vimperator.org/namespaces/liberator">
     <author>voidy21</author>
@@ -31,7 +30,7 @@ let INFO =
     <project name="Vimperator" minVersion="2.3"/>
     <p>URL 移動時にそのURLが既に開かれていたら、そのタブに移動する</p>
   </plugin>
-</>;
+`;
 // }}}
 
 /*
@@ -51,7 +50,7 @@ let INFO =
     }
     for each ( [,tab] in tabs.browsers ) {
       if (url == tab.currentURI.spec){
-        tabs.select(index);
+        tabs.select(index, false, true);
         return true;
       }
       ++index;
@@ -115,5 +114,17 @@ let INFO =
       true
     );
   }
+
+  U.around(
+    quickmarks,
+    'jumpTo',
+    function (next, args) {
+      let qmark = args[0];
+      let url = quickmarks._qmarks.get(qmark);
+      if (!(url && jump(url))) {
+        return next();
+      }
+    }
+  );
 
 })();

@@ -33,9 +33,8 @@ THE POSSIBILITY OF SUCH DAMAGE.
 }}} */
 
 // INFO {{{
-let INFO =
-<>
-  <plugin name="Win Cursor" version="1.3.1"
+let INFO = xml`
+  <plugin name="Win Cursor" version="1.3.2"
           href="http://vimpr.github.com/"
           summary="Cursor control plugin for MS Windows"
           lang="en-US"
@@ -109,8 +108,17 @@ let INFO =
         </p>
       </description>
     </item>
+    <item>
+      <tags>g:win_mouse_release_delay</tags>
+      <spec>g:win_mouse_release_delay = <a>msec</a></spec>
+      <description>
+        <p>
+          <a>msec</a> milliseconds after clicking, release modifier keys.
+        </p>
+      </description>
+    </item>
   </plugin>
-</>;
+`;
 // }}}
 
 (function () {
@@ -447,7 +455,7 @@ let INFO =
               }
               SendInput(relKeys.length, ClickInput.address(), MouseInput.size)
             },
-            50
+            liberator.globalVariables.win_mouse_release_delay || 5
           );
         }
       }
@@ -549,7 +557,7 @@ let INFO =
   function displayCurrent () {
     let pos = API.position;
     let col = API.getPixel(pos);
-    return liberator.echo(<>[Position] {pos.x}, {pos.y} [Color] {col.r}, {col.g}, {col.b} ({col.name})</>);
+    return liberator.echo(`[Position] {pos.x}, {pos.y} [Color] {col.r}, {col.g}, {col.b} ({col.name})`);
   }
 
   commands.addUserCommand(

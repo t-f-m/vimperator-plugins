@@ -32,35 +32,10 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 }}} */
 
-// PLUGIN_INFO {{{
-let PLUGIN_INFO =
-<VimperatorPlugin>
-  <name>X-Hint</name>
-  <name lang="ja">X-Hint</name>
-  <description>Show the hints with given XPath.</description>
-  <description lang="ja">指定のXPathでヒントを表示する。</description>
-  <version>1.1.2</version>
-  <author mail="anekos@snca.net" homepage="http://d.hatena.ne.jp/nokturnalmortum/">anekos</author>
-  <license>new BSD License (Please read the source code comments of this plugin)</license>
-  <license lang="ja">修正BSDライセンス (ソースコードのコメントを参照してください)</license>
-  <updateURL>https://github.com/vimpr/vimperator-plugins/raw/master/x-hint.js</updateURL>
-  <minVersion>2.3</minVersion>
-  <maxVersion>2.3</maxVersion>
-  <detail><![CDATA[
-    :xh[int] <Hint-Mode> <XPath>:
-      Show the <Hint-Mode> hints with <XPath>
-  ]]></detail>
-  <detail lang="ja"><![CDATA[
-    :xh[int] <Hint-Mode> <XPath>:
-      <XPath> で <Hint-Mode> ヒントを表示
-  ]]></detail>
-</VimperatorPlugin>;
-// }}}
 // INFO {{{
-let INFO =
-<>
-  <plugin name="X-Hint" version="1.1.2"
-          href="http://svn.coderepos.org/share/lang/javascript/vimperator-plugins/trunk/x-hint.js"
+let INFO = xml`
+  <plugin name="X-Hint" version="1.1.3"
+          href="http://github.com/vimpr/vimperator-plugins/blob/master/x-hint.js"
           summary="Show the hints with given XPath."
           lang="en-US"
           xmlns="http://vimperator.org/namespaces/liberator">
@@ -91,8 +66,8 @@ let INFO =
       </description>
     </item>
   </plugin>
-  <plugin name="X-Hint" version="1.1.2"
-          href="http://svn.coderepos.org/share/lang/javascript/vimperator-plugins/trunk/x-hint.js"
+  <plugin name="X-Hint" version="1.1.3"
+          href="http://github.com/vimpr/vimperator-plugins/blob/master/x-hint.js"
           summary="Show the hints with given XPath."
           lang="ja"
           xmlns="http://vimperator.org/namespaces/liberator">
@@ -121,8 +96,7 @@ let INFO =
         </p>
       </description>
     </item>
-  </plugin>
-</>;
+  </plugin>`;
 // }}}
 
 
@@ -135,6 +109,12 @@ let INFO =
   function xpath ()
     (last.xpath || '//a')
 
+  function restore () {
+    if (last.hintMode)
+      last.hintMode.tags = last.hintTags;
+    last = {};
+  }
+
   plugins.libly.$U.around(
     hints,
     'show',
@@ -146,7 +126,13 @@ let INFO =
         // override
         last.hintMode.tags = xpath;
       }
-      return next();
+      try {
+        return next();
+      } catch (e) {
+        restore();
+        liberator.log('x-hint: restore tags for error');
+        liberator.log(e);
+      }
     },
     true
   );
@@ -155,9 +141,7 @@ let INFO =
     hints,
     'hide',
     function (next, [minor, filter, win]) {
-      if (last.hintMode)
-        last.hintMode.tags = last.hintTags;
-      last = {};
+      restore();
       return next();
     },
     true

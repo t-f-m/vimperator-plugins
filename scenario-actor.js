@@ -1,5 +1,5 @@
 // PLUGIN_INFO//{{{
-var PLUGIN_INFO =
+var PLUGIN_INFO = xml`
 <VimperatorPlugin>
     <name>{NAME}</name>
     <description>browser act scenario semi-automatic.</description>
@@ -78,7 +78,7 @@ and action expressions are quoted by {begin: ...}.
 - fix bugs.
 - a lot.
      ]]></detail>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 //}}}
 (function() {
 
@@ -93,7 +93,7 @@ var $U = libly.$U;
 var logger = $U.getLogger('scenario-actor');
 
 function ScenarioActor () { //{{{
-    let variables = storage.newMap('scenarioactor', true);
+    let variables = storage.newMap('scenarioactor', {store: true});
 
     function ScenarioContext(event) { //{{{
         let triggeredEvent = event;

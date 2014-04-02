@@ -33,10 +33,9 @@ THE POSSIBILITY OF SUCH DAMAGE.
 }}} */
 
 // INFO {{{
-let INFO =
-<>
-  <plugin name="HintsForEmbeded" version="1.4.1"
-          href="http://svn.coderepos.org/share/lang/javascript/vimperator-plugins/trunk/hints-for-embedded.js"
+let INFO = xml`
+  <plugin name="HintsForEmbeded" version="1.6.0"
+          href="http://github.com/vimpr/vimperator-plugins/blob/master/hints-for-embedded.js"
           summary="Add the hints mode for embedded objects."
           lang="en-US"
           xmlns="http://vimperator.org/namespaces/liberator">
@@ -79,8 +78,8 @@ let INFO =
       </description>
     </item>
   </plugin>
-  <plugin name="HintsForEmbeded" version="1.4.1"
-          href="http://svn.coderepos.org/share/lang/javascript/vimperator-plugins/trunk/hints-for-embedded.js"
+  <plugin name="HintsForEmbeded" version="1.5.0"
+          href="http://github.com/vimpr/vimperator-plugins/blob/master/hints-for-embedded.js"
           summary="埋め込み(embed)オブジェクト用ヒントモード"
           lang="ja"
           xmlns="http://vimperator.org/namespaces/liberator">
@@ -123,7 +122,7 @@ let INFO =
       </description>
     </item>
   </plugin>
-</>;
+`;
 // }}}
 
 (function () {
@@ -133,6 +132,7 @@ let INFO =
   let modeName = liberator.globalVariables.hints_for_embedded_mode || 'hints-for-embedded';
   let where = liberator.globalVariables.hints_for_embedded_where;
   let openParent = liberator.globalVariables.hints_for_embedded_open_parent_link || 0;
+  let useVLC = liberator.globalVariables.hints_for_embedded_use_vlc || 0;
 
   if (typeof where === 'undefined')
     where = liberator.NEW_TAB;
@@ -147,23 +147,33 @@ let INFO =
       value: /(?:v|wv_id)=([a-z]{2}\d{1,10})/,
       url: function (id) ('http://www.nicovideo.jp/watch/' + id)
     },
+    youtube_iframe: {
+      site: /youtube/,
+      name: /^src$/,
+      value: /http:\/\/www\.youtube\.com\/(?:embed|v)\/([-a-zA-Z0-9_]+)/,
+      url: function (id) ('http://www.youtube.com/watch?v=' + id),
+      vlc: true
+    },
     youtube: {
       site: /youtube/,
       name: /.*/,
       value: /youtube\.com\/v\/([-a-zA-Z0-9_]+)/,
-      url: function (id) ('http://www.youtube.com/watch?v=' + id)
+      url: function (id) ('http://www.youtube.com/watch?v=' + id),
+      vlc: true
     },
     youtube_image: {
       site: /ytimg\.com/,
       name: /^flashvars$/,
       value: /video_id=([-a-zA-Z0-9_]+)/,
-      url: function (id) ('http://www.youtube.com/watch?v=' + id)
+      url: function (id) ('http://www.youtube.com/watch?v=' + id),
+      vlc: true
     },
     vimeo: {
       site: /vimeo/,
       name: /.*/,
       value: /clip_id=(\d+)/,
-      url: function (id) ('http://vimeo.com/' + id)
+      url: function (id) ('http://vimeo.com/' + id),
+      vlc: true
     },
     collegehumor: {
       site: /collegehumor/,
@@ -179,16 +189,18 @@ let INFO =
   function getInfo (elem)
     getAttrs(elem).concat((Array.slice(elem.querySelectorAll('object,embed,param')) || []).map(getInfo));
 
-  function open (elem) {
+  function open (elem, where) {
     let info = getInfo(elem.wrappedJSObject);
+
+    let doOpen = function (url) liberator.open(url, where);
 
     if (elem.tagName === 'IMG' && elem.src) {
       if (openParent) {
         let p = elem.parentNode;
-        if (p.tagName === 'A' && /(gif|png|jpe?g)$/i(p.href))
-          return liberator.open(p.href, liberator.NEW_TAB);
+        if (p.tagName === 'A' && /(gif|png|jpe?g)$/i.test(p.href))
+          return doOpen(p.href);
       }
-      return liberator.open(elem.src, liberator.NEW_TAB);
+      return doOOpen(elem.src);
     }
 
     let site =
@@ -198,25 +210,30 @@ let INFO =
             return site;
       })();
 
+
     if (site) {
+      if (useVLC && site.vlc) {
+        doOpen = function (url) io.run('vlc', [url]);
+      }
+
       for each (let [n, v] in info) {
         [n, v] = [String(n), String(v)];
-        if (site.name && !site.name(n))
+        if (site.name && !site.name.test(n))
           continue;
         let m = n.match(site.value) || v.match(site.value);
         if (m)
-          return site.url(Array.slice(m, 1));
+          return doOpen(site.url(Array.slice(m, 1)));
       }
     }
 
-    let urls = info.filter(function ([n, v]) /^https?:\/\//(v));
+    let urls = info.filter(function ([n, v]) /^https?:\/\//.test(v));
     if (!urls.length)
       return liberator.echoerr('Could not found URL');
 
     commandline.input(
       'Select the link you wish to open: ',
       function (url) {
-        liberator.open(url, where);
+        doOpen(url);
       },
       {
         default: urls[0][1],
@@ -231,9 +248,9 @@ let INFO =
     modeName,
     DESC,
     function (elem) {
-      liberator.open(open(elem), where);
+      open(elem, where);
     },
-    function () '//embed | //object | //img'
+    function () '//embed | //object | //img | //iframe'
   );
 
   commands.addUserCommand(

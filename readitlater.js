@@ -5,13 +5,12 @@
  * TODO:ADDにbufferからのリストを入れられるように
 */
 
-let PLUGIN_INFO =
+let PLUGIN_INFO = xml`
 <VimperatorPlugin>
 	<name>readitlater</name>
 	<description lang="ja">Read it Later を快適に使うためのプラグインです</description>
-	<version>0.2.1</version>
+	<version>0.4.0</version>
 	<minVersion>3.0</minVersion>
-	<maxVersion>3.2</maxVersion>
 	<author mail="ninja.tottori@gmail.com" homepage="http://twitter.com/ninja_tottori">ninja.tottori</author>
 	<updateURL>https://github.com/vimpr/vimperator-plugins/raw/master/readitlater.js</updateURL>
 	<detail lang="ja"><![CDATA[
@@ -36,13 +35,8 @@ let PLUGIN_INFO =
 	:ril add
 		今見ているページのurlとtitleを登録します
 		オプションとして url , title が選べるので適当に編集して登録もできます。
-
-	:ril get
-		登録されてるページの情報を取得してキャッシュしときます。
-		デフォルトは50件ですが
-		let g:readitlater_get_count = 100
-		とかで取得件数を変更できます。
-		add , open , read された後に問答無用で同期かけに行ってますので、件数をやたらに増やさない方がいいかもしれません。
+		また、URL の補完も効きます。
+		URL補完は let g:readitlater_complete = "slf" のようにして使用する補完を選択できます。
 
 	:ril open
 		<Space>で補完にreaditlaterのリストが出てくるので、任意のURLを選択(<Space>)して実行すると新しいタブに開きます。
@@ -51,7 +45,6 @@ let PLUGIN_INFO =
 		また、開くと同時に既読フラグを立てに行く事ができます。
 		let g:readitlater_open_as_read = 1
 		としてもらえれば大丈夫です。
-		※初回はキャッシュにデータが入っていないと思うので自分で:ril getしてやる必要があります。
 
 	:ril read
 		既読フラグを立てる為のサブコマンドです。
@@ -62,10 +55,55 @@ let PLUGIN_INFO =
 
 
 	]]></detail>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 
 
 (function(){
+
+	let listOptions = [ // {{{
+		[['-filter', '-f'], commands.OPTION_STRING, null, []]
+	]; // }}}
+
+	function listCompleter(context,args){ // {{{
+
+		function sortDate(store){
+			let ary = [];
+			for (let s in store){
+				ary.push([s[1].time_updated,s[1]]); // 更新日でソート
+			}
+			ary.sort(function(a,b){return -(a[0] - b[0])});
+			return ary;
+		}
+
+		context.title = ["url","title"]
+		context.filters = [CompletionContext.Filter.textDescription]; // titleも補完対象にする
+		context.compare = void 0;
+		context.anchored = false;
+		context.incomplete = true;
+
+		ListCache[args.bang ? 'all' : 'unread'].get(function(data){
+			let filter = function () true;
+			if (args['-filter']) {
+				let matcher = {
+					filter: args['-filter'],
+					match: CompletionContext.prototype.match
+				};
+				filter = function (item) (matcher.match(item.url) || matcher.match(item.title));
+			}
+
+			context.completions = [
+				[item.url,item.title]
+				for([, item] in Iterator(data.list))
+				if(
+					!args.some(function (arg) arg == item.url)
+					&&
+					filter(item)
+				)
+			];
+			context.incomplete = false;
+		});
+
+	} //}}}
 
 	commands.addUserCommand(["ril","readitlater"],	"Read It Late plugin",
 		function(args){
@@ -77,6 +115,7 @@ let PLUGIN_INFO =
 				function (args) {
 					addItemByArgs(args);
 				},{
+				literal: 0,
 				options : [
 					[["url","u"],commands.OPTION_STRING,null,
 							(function(){
@@ -90,12 +129,14 @@ let PLUGIN_INFO =
 						})
 					],
 				],
+				completer: function (context, args) completion.url(context, liberator.globalVariables.readitlater_complete)
 				}
 			),
 
+			/*
 			new Command(["get","g"], "Retrieve a user's reading list",
 				function (args) {
-          ListCache.update(true, function(data) echo(countObjectValues(data.list) + " found."));
+					ListCache.unread.update(true, function(data) echo(countObjectValues(data.list) + " found."));
 				},{
 				options : [
 					//[["num"],commands.OPTION_INT],
@@ -105,6 +146,7 @@ let PLUGIN_INFO =
 				],
 				}
 			),
+			*/
 
 			new Command(["open","o"], "Open url in new tab from RIL list.",
 				function (args) {
@@ -113,6 +155,7 @@ let PLUGIN_INFO =
 				},{
 					bang: true,
 					completer : listCompleter,
+					options: listOptions
 				}
 			),
 
@@ -122,6 +165,7 @@ let PLUGIN_INFO =
 				},{
 					bang: true,
 					completer : listCompleter,
+					options: listOptions
 				}
 			),
 
@@ -185,7 +229,16 @@ let PLUGIN_INFO =
 
 		save: function() CacheStore.save(),
 
-		get isExpired() (!this.lastUpdated || (new Date().getTime() > (this.lastUpdated + this.limit)))
+		get isExpired() (!this.lastUpdated || (new Date().getTime() > (this.lastUpdated + this.limit))),
+		remove: function(url){ // {{{
+			if (!this.cache)
+				return this.udpate(true);
+			let names = [n for ([n, v] in Iterator(this.cache.list)) if (v.url == url)];
+			for (let [, name] in Iterator(names))
+				delete this.cache.list[name];
+			this.save();
+			this.update();
+		} // }}}
 	};
   // }}}
 
@@ -211,11 +264,11 @@ let PLUGIN_INFO =
 
 		);
 
-		req.addEventListener("onSuccess",function(data){
+		req.addEventListener("success",function(data){
 			e(data.responseText)
 		});
 
-		req.addEventListener("onFailure",function(data){
+		req.addEventListener("failure",function(data){
 			liberator.echoerr(data.statusText);
 			liberator.echoerr(data.responseText);
 		});
@@ -224,11 +277,11 @@ let PLUGIN_INFO =
 
 		}, // }}}
 
-		get : function(callback){ // {{{
+		get : function(state, callback){ // {{{
 		// document => http://readitlaterlist.com/api/docs#get
 
 		let manager = Components.classes["@mozilla.org/login-manager;1"].getService(Components.interfaces.nsILoginManager);
-		let logins = manager.findLogins({},"http://readitlaterlist.com","",null);
+		let logins = manager.findLogins({},"http://getpocket.com","",null);
 
 		let req = new libly.Request(
 			"https://readitlaterlist.com/v2/get" , // url
@@ -238,11 +291,11 @@ let PLUGIN_INFO =
 			postBody:getParameterMap(
 				{
 				apikey    : this.api_key,
-				username  : encodeURIComponent(logins[0].username),
-				password  : encodeURIComponent(logins[0].password),
+				username  : logins[0].username,
+				password  : logins[0].password,
 				format    : "json",
 				count     : (liberator.globalVariables.readitlater_get_count? liberator.globalVariables.readitlater_get_count : 50 ),
-				//state   : (args["read"]) ? "read" : "unread",
+				state     : state
 				//tags    : (args["tags"]) ? 1 : 0,
 				//myAppOnly: (args["myAppOnly"]) ? 1 : 0,
 				}
@@ -251,8 +304,8 @@ let PLUGIN_INFO =
 
 		);
 
-		req.addEventListener("onSuccess",function(data) callback(libly.$U.evalJson(data.responseText)));
-		req.addEventListener("onFailure",function(data){
+		req.addEventListener("success",function(data) callback(libly.$U.evalJson(data.responseText)));
+		req.addEventListener("failure",function(data){
 			liberator.echoerr(data.statusText);
 			liberator.echoerr(data.responseText);
 		});
@@ -273,19 +326,18 @@ let PLUGIN_INFO =
 			postBody:getParameterMap(
 				{
 				apikey    : this.api_key,
-				username  : encodeURIComponent(logins[0].username),
-				password  : encodeURIComponent(logins[0].password),
-				url       : encodeURIComponent(url),
-				title     : encodeURIComponent(title),
+				username  : logins[0].username,
+				password  : logins[0].password,
+				url       : url,
+				title     : title,
 				}
 			)
 			}
 
 		);
+		req.addEventListener("success",callback);
 
-		req.addEventListener("onSuccess",callback);
-
-		req.addEventListener("onFailure",function(data){
+		req.addEventListener("failure",function(data){
 			liberator.echoerr(data.statusText);
 			liberator.echoerr(data.responseText);
 		});
@@ -303,7 +355,7 @@ let PLUGIN_INFO =
 		function make_read_list(args){
 			let o = {};
 			for (let i = 0; i < args.length; i++) {
-				o[i] = {"url":encodeURIComponent(args[i])};
+				o[i] = {"url":args[i]};
 			};
 			return JSON.stringify(o);
 		}
@@ -316,8 +368,8 @@ let PLUGIN_INFO =
 				postBody:getParameterMap(
 					{
 					apikey    : this.api_key,
-					username  : encodeURIComponent(logins[0].username),
-					password  : encodeURIComponent(logins[0].password),
+					username  : logins[0].username,
+					password  : logins[0].password,
 					read      : make_read_list(urls),
 					}
 				)
@@ -325,14 +377,13 @@ let PLUGIN_INFO =
 		);
 
 		var ref = this;
-		req.addEventListener("onSuccess",callback);
+		req.addEventListener("success",callback);
 
-		req.addEventListener("onFailure",function(data){
+		req.addEventListener("failure",function(data){
 			liberator.echoerr(data.statusText);
 			liberator.echoerr(data.responseText);
 		});
 
-	liberator.log(urls)
 		req.post();
 
 
@@ -350,8 +401,8 @@ let PLUGIN_INFO =
 				postBody:getParameterMap(
 					{
 					apikey    : this.api_key,
-					username  : encodeURIComponent(logins[0].username),
-					password  : encodeURIComponent(logins[0].password),
+					username  : logins[0].username,
+					password  : logins[0].password,
 					format    : "json",
 					}
 				)
@@ -359,23 +410,23 @@ let PLUGIN_INFO =
 
 		);
 
-		req.addEventListener("onSuccess",function(data){
+		req.addEventListener("success",function(data){
 			let res = libly.$U.evalJson(data.responseText);
-			liberator.echo(
+			liberator.echo(xml`
 			<style type="text/css"><![CDATA[
 				div.stats{font-weight:bold;text-decoration:underline;color:gold;padding-left:1em;line-height:1.5em;}
-			]]></style> +
-			<div>#ReadItLater Stats</div> +
-			<div class="stats">
-				since : {unixtimeToDate(res.user_since)} <br />
-				list : {res.count_list} <br />
-				unread : {res.count_unread} <br />
-				read : {res.count_read} <br />
+			]]></style>` +
+			xml`<div>#ReadItLater Stats</div>` +
+			xml`<div class="stats">
+				since : ${unixtimeToDate(res.user_since)} <br />
+				list : ${res.count_list} <br />
+				unread : ${res.count_unread} <br />
+				read : ${res.count_read} <br />
 			</div>
-			);
+			`);
 		});
 
-		req.addEventListener("onFailure",function(data){
+		req.addEventListener("failure",function(data){
 			liberator.echoerr(data.statusText);
 			liberator.echoerr(data.responseText);
 		});
@@ -400,21 +451,21 @@ let PLUGIN_INFO =
 
 		);
 
-		req.addEventListener("onSuccess",function(data){
-			liberator.echo(
+		req.addEventListener("success",function(data){
+			liberator.echo(xml`
 			<div>
-				X-Limit-User-Limit : {data.transport.getResponseHeader("X-Limit-User-Limit")} <br />
-				X-Limit-User-Remaining : {data.transport.getResponseHeader("X-Limit-User-Remaining")} <br />
-				X-Limit-User-Reset : {data.transport.getResponseHeader("X-Limit-User-Reset")} <br />
-				X-Limit-Key-Limit : {data.transport.getResponseHeader("X-Limit-Key-Limit")} <br />
-				X-Limit-Key-Remaining : {data.transport.getResponseHeader("X-Limit-Key-Remaining")} <br />
-				X-Limit-Key-Reset : {data.transport.getResponseHeader("X-Limit-Key-Reset")} <br />
+				X-Limit-User-Limit : ${data.transport.getResponseHeader("X-Limit-User-Limit")} <br />
+				X-Limit-User-Remaining : ${data.transport.getResponseHeader("X-Limit-User-Remaining")} <br />
+				X-Limit-User-Reset : ${data.transport.getResponseHeader("X-Limit-User-Reset")} <br />
+				X-Limit-Key-Limit : ${data.transport.getResponseHeader("X-Limit-Key-Limit")} <br />
+				X-Limit-Key-Remaining : ${data.transport.getResponseHeader("X-Limit-Key-Remaining")} <br />
+				X-Limit-Key-Reset : ${data.transport.getResponseHeader("X-Limit-Key-Reset")} <br />
 
 			</div>
-			);
+			`);
 		});
 
-		req.addEventListener("onFailure",function(data){
+		req.addEventListener("failure",function(data){
 			liberator.echoerr(data.statusText);
 			liberator.echoerr(data.responseText);
 		});
@@ -425,67 +476,31 @@ let PLUGIN_INFO =
 
 	}
 
-	let ListCache = new Cache({name: 'list', updater: ReadItLater.get.bind(ReadItLater)}); // {{{
-	ListCache.remove = function(url){
-		if (!this.cache)
-			return this.udpate(true);
-		let names = [n for ([n, v] in Iterator(this.cache.list)) if (v.url == url)];
-		for (let [, name] in Iterator(names))
-			delete this.cache.list[name];
-		this.save();
-		this.update();
-	}; // }}}
+	let ListCache = {
+		all: new Cache({name: 'list', updater: ReadItLater.get.bind(ReadItLater, '')}),
+		unread: new Cache({name: 'list', updater: ReadItLater.get.bind(ReadItLater, 'unread')})
+	};
 
 	function markAsRead(urls){ // {{{
 		for (let [, url] in Iterator(urls))
-			ListCache.remove(url);
+			ListCache.unread.remove(url);
 		ReadItLater.send(urls, echo.bind(null, "Mark as read: " + urls.length));
 	} // }}}
 
 	function addItemByArgs(args){ // {{{
-		let url = args["url"] || buffer.URL;
-		let title = args["title"] || buffer.title;
-		ReadItLater.add(url, title,function(){
-			echo("Added: " + title)
-			ListCache.update(true);
+		let url = args["url"] || args.literalArg;
+		let title = args["title"] || (url ? undefined : buffer.title);
+		if (!url)
+			url = buffer.URL;
+		ReadItLater.add(url, title, function(){
+			echo("Added: " + (title || url));
+			ListCache.unread.update(true);
 		});
 	} // }}}
 
 	function echo(msg){ // {{{
 		liberator.echo("[ReadItLater] " + msg);
 	} // }}}
-
-	function listCompleter(context,args){ // {{{
-
-		function sortDate(store){
-			let ary = [];
-			for (let s in store){
-				ary.push([s[1].time_updated,s[1]]); // 更新日でソート
-			}
-			ary.sort(function(a,b){return -(a[0] - b[0])});
-			return ary;
-		}
-
-		context.title = ["url","title"]
-		context.filters = [CompletionContext.Filter.textDescription]; // titleも補完対象にする
-		context.compare = void 0;
-		context.anchored = false;
-		context.incomplete = true;
-
-		ListCache.get(function(data){
-			context.completions = [
-				[item.url,item.title]
-				for([, item] in Iterator(data.list))
-				if(
-					!args.some(function (arg) arg == item.url)
-					&&
-					(!args["bang"] ?  item.state == 0 : item.state == 1)
-				)
-			];
-			context.incomplete = false;
-		});
-
-	} //}}}
 
 	function unixtimeToDate(ut) { // {{{
 		var t = new Date( ut * 1000 );
@@ -494,12 +509,11 @@ let PLUGIN_INFO =
 	} // }}}
 
 	function getParameterMap(parameters){ // {{{
-		let map = "";
-		for (let key in parameters){
-			if (map) map += "&";
-			map += key + "=" + parameters[key];
-		}
-		return map
+		return [
+			key + "=" + encodeURIComponent(value)
+			for ([key, value] in Iterator(parameters))
+			if (value)
+		].join("&");
 	} // }}}
 
   function countObjectValues(obj){ // {{{
@@ -515,7 +529,11 @@ let PLUGIN_INFO =
 	// Export {{{
 	__context__.ListCache = ListCache;
 	__context__.API = ReadItLater;
+	__context__.WrappedAPI = {
+		markAsRead: markAsRead
+	}
 	// }}}
 
 })();
 
+// vim: set noet :

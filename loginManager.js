@@ -1,20 +1,23 @@
 // PLUGIN_INFO//{{{
-var PLUGIN_INFO =
+var PLUGIN_INFO = xml`
 <VimperatorPlugin>
     <name>{NAME}</name>
     <description>login manager</description>
     <author mail="konbu.komuro@gmail.com" homepage="http://d.hatena.ne.jp/hogelog/">hogelog</author>
-    <version>0.0.6</version>
+    <version>0.2.1</version>
     <minVersion>2.0pre</minVersion>
-    <maxVersion>3.1</maxVersion>
     <updateURL>https://github.com/vimpr/vimperator-plugins/raw/master/loginManger.js</updateURL>
     <license>public domain</license>
     <detail><![CDATA[
+        Default login user setting:
+        >||
+            let g:login_manager_default_user='nicovideo=mymail@addre.ss, slashdotjp=hogelogger'
+        ||<
 
 === TODO ===
 
 ]]></detail>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 //}}}
 
 (function(){
@@ -54,6 +57,8 @@ var services = {
         },
     },
     hatena: {
+        NAME: "はてな",
+        URL: /^https?:\/\/\w+\.hatena\.ne.\jp/,
         HOST: ["https://www.hatena.ne.jp", "http://www.hatena.ne.jp"],
         LOGIN: "/login",
         LOGOUT: "/logout",
@@ -62,6 +67,7 @@ var services = {
         logoutBeforeLogin: true,
     },
     hatelabo: {
+        NAME: "はてラボ",
         HOST: ["https://www.hatelabo.jp", "http://www.hatelabo.jp"],
         LOGIN: "/login",
         LOGOUT: "/logout",
@@ -73,11 +79,16 @@ var services = {
         },
     },
     tumblr: {
-        HOST: ["http://www.tumblr.com"],
-        LOGIN: "/login",
+        NAME: "tumblr",
+        HOST: ["https://www.tumblr.com"],
+        URL: /^https?:\/\/(?:\w+\.)?tumblr\.com\//,
+        LOGIN: "/svc/account/register",
         LOGOUT: "/logout",
-        usernameField: "email",
-        passwordField: "password",
+        usernameField: "user[email]",
+        passwordField: "user[password]",
+        extraField: {
+            action: 'signup_login'
+        },
     },
     twitter: {
         HOST: ["https://twitter.com", "http://twitter.com"],
@@ -109,16 +120,120 @@ var services = {
             CSRFPROTECT: tokenGetter(/CSRFPROTECT.+value="(.+?)"/),
         },
     },
+    delicious: {
+        HOST: ["https://secure.delicious.com"],
+        LOGIN: "/login",
+        LOGOUT: "/logout",
+        usernameField: "username",
+        passwordField: "password",
+        extraField: {
+            rememberme: "1",
+        },
+    },
+    evernote: {
+        HOST: ["https://www.evernote.com"],
+        LOGIN: "/Login.action",
+        LOGOUT: "/Logout.action",
+        usernameField: "username",
+        passwordField: "password",
+        extraField: {
+            rememberMe: "true",
+            _sourcePage: tokenGetterLoginURL(/_sourcePage.+value="(.+?)"/),
+            __fp: tokenGetterLoginURL(/__fp.+value="(.+?)"/),
+            login: "Sign In",
+        },
+    },
+    readitlater: {
+        HOST: ["http://readitlaterlist.com"],
+        LOGIN: "/login_process/",
+        LOGOUT: "/lo",
+        usernameField: "feed_id",
+        passwordField: "password",
+    },
+    nicovideo: {
+        URL: /^https?:\/\/\w+\.nicovideo.\jp/,
+        NAME: "ニコニコ動画",
+        HOST: ["https://secure.nicovideo.jp"],
+        LOGIN: "/secure/login",
+        usernameField: "mail",
+        passwordField: "password",
+        extraField: {
+            site: "niconico"
+        }
+    },
+    slashdotjp: {
+        NAME: "スラッシュドットジャパン",
+        HOST: ["http://slashdot.jp"],
+        LOGIN: "/login.pl",
+        usernameField: "unickname",
+        passwordField: "upasswd",
+        extraField: {
+            op: "userlogin",
+        }
+    },
+    livedoor: {
+        NAME: "livedoor",
+        HOST: ["https://member.livedoor.com", "http://api.livedoor.com"],
+        URL: /^https?:\/\/(?:\w+\.)?livedoor\.com\//,
+        LOGIN: "/login/?.sv=top",
+        LOGOUT: "/logout/", /* FIXME not works */
+        usernameField: "livedoor_id",
+        passwordField: "password",
+    },
 };
-for (name in services){
-    services[name] = new Service(services[name]);
+for (let [name, service] in Iterator(services)){
+    if (!service.NAME)
+        service.NAME = name;
+    services[name] = new Service(service);
 }
-if (liberator.globalVariables.userLoginServices) {
-    let userServices = liberator.globalVariables.userLoginServices;
-    for (name in userServices){
-        services[name] = new Service(userServices[name]);
+let (gv = liberator.globalVariables.userLoginServices || liberator.globalVariables.login_manager_services) {
+    if (gv) {
+        let userServices = gv;
+        for (name in userServices){
+            services[name] = new Service(userServices[name]);
+        }
     }
 }
+for (let [name, service] in Iterator(services)){
+    if (!service.NAME)
+        service.NAME = name;
+}
+let (gv = liberator.globalVariables.userLoginDefaults || liberator.globalVariables.login_manager_default_user) {
+    if (typeof gv === 'string') {
+        for (let [, sn] in Iterator(gv.split(','))) {
+            let [s, v] = sn.split('=');
+            services[s.trim()].DEFAULT_USER = v.trim();
+        }
+    } else if (typeof gv === 'object') {
+        for (let [n, v] in Iterator(gv))
+            services[n].DEFAULT_USER = v;
+    }
+}
+
+Object.defineProperty(
+    services,
+    "auto",
+    {
+        enumerable: true,
+        get: function(){
+            let currentURI = makeURI(buffer.URL);
+            if (/^https?/.test(currentURI.scheme)) {
+                for (let n in Iterator(this, true)){
+                    if (n === "auto") continue;
+                    let s = this[n];
+                    if (s.URL && s.URL.test(buffer.URL))
+                        return s;
+                    for (let [, h] in Iterator(s.HOST)){
+                        let sURI = makeURI(h);
+                        if (sURI.host === currentURI.host) return s;
+                    }
+                }
+            }
+            // XXX (補完に|エラーを)出さないためのダミー
+            return {getUsernames: function() ([])};
+        }
+    }
+)
 
 // Library
 function Service(service) //{{{
@@ -135,6 +250,7 @@ function Service(service) //{{{
         if (service.extraField && !self.setExtraField(content)) return false;
 
         let loginURL = host+service.LOGIN;
+        liberator.log(loginURL);
         let error = function(e) liberator.echo('login failed "'+host+'" as '+username);
         let success = function(e) liberator.echo('login "'+host+'" as '+username);
         let login = function() request(loginURL, content, success, error);
@@ -218,15 +334,30 @@ function tokenGetter(pattern) //{{{
         }
     };
 }
+function tokenGetterLoginURL(pattern) //{{{
+{
+    return function(service){
+        let res = util.httpGet(service.HOST[0]+service.LOGIN);
+        if (pattern.test(res.responseText)){
+            return RegExp.$1;
+        }
+    };
+}
 function getServiceAndUsernameFromArgs(args, logout)
 {
     let [servicename, username] = args;
     let service = services[servicename];
-    if (!service) return;
+    if (!service)
+        service = services.auto;
+    if (!service)
+        return;
     if (!username) {
         let names = service.getUsernames();
-        if (names.length === 1)
+        if (names.length === 1) {
             username = names[0];
+        } else {
+            username = service.DEFAULT_USER;
+        }
     }
     return [service, username];
 } //}}}
@@ -245,12 +376,12 @@ commands.addUserCommand(["login"], "Login",
         completer: function(context, args){
             if (args.completeArg == 0){
                 context.title = ["service"];
-                context.completions = [[n,""] for([n,s] in Iterator(services)) if (s.getUsernames().length)];
+                context.completions = [[n,s.NAME] for([n,s] in Iterator(services)) if (s.getUsernames().length)];
             } else if (args.completeArg == 1){
                 let service = services[args[0]];
                 if (!service) return false;
                 context.title = ["username"];
-                context.completions = [[u,""] for each(u in service.getUsernames())];
+                context.completions = [[u,] for each(u in service.getUsernames())];
             }
         },
         literal: 1,
@@ -264,7 +395,7 @@ commands.addUserCommand(["logout"], "Logout",
     }, {
         completer: function(context, args){
             context.title = ["service"];
-            context.completions = [[n,""] for([n,s] in Iterator(services)) if (s.getUsernames().length)];
+            context.completions = [[n,s.NAME] for([n,s] in Iterator(services)) if (s.getUsernames().length)];
         },
     }, true);
 // }}}

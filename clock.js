@@ -1,13 +1,12 @@
-let PLUGIN_INFO =
+let PLUGIN_INFO = xml`
 <VimperatorPlugin>
 <name>{NAME}</name>
 <description>clock</description>
 <description lang="ja">とけい</description>
 <author mail="janus_wel@fb3.so-net.ne.jp" homepage="http://d.hatena.ne.jp/janus_wel">janus_wel</author>
 <license document="http://www.opensource.org/licenses/bsd-license.php">New BSD License</license>
-<version>0.15.2</version>
-<minVersion>2.0pre</minVersion>
-<maxVersion>2.2pre</maxVersion>
+<version>0.15.3</version>
+<minVersion>3.0</minVersion>
 <updateURL>https://github.com/vimpr/vimperator-plugins/raw/master/clock.js</updateURL>
 <detail><![CDATA[
 == USAGE ==
@@ -95,7 +94,7 @@ let clock_format='(%t %d)'
 ||<
 
 ]]></detail>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 
 ( function () {
 
@@ -337,9 +336,7 @@ function year() {
 
 // node control
 function getCommandlineStack() {
-    let messageTextarea = window.document.getElementById('liberator-message');
-    let commandlineStack = messageTextarea.parentNode;
-    return commandlineStack.localName === 'stack' ? commandlineStack : null;
+    return window.document.getElementById('liberator-bottombar');
 }
 
 } )();

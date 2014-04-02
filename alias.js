@@ -33,7 +33,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 }}} */
 
 // PLUGIN_INFO {{{
-let PLUGIN_INFO =
+let PLUGIN_INFO = xml`
 <VimperatorPlugin>
   <name>alias</name>
   <name lang="ja">alias</name>
@@ -54,13 +54,12 @@ let PLUGIN_INFO =
     :alias <new-command-name> <old-command-name>:
       コマンド <old-command-name> に <new-command-name> という別名をつけます。
   ]]></detail>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 // }}}
 // INFO {{{
-let INFO =
-<>
+let INFO = xml`
   <plugin name="alias" version="1.0.0"
-          href="http://svn.coderepos.org/share/lang/javascript/vimperator-plugins/trunk/alias.js"
+          href="http://github.com/vimpr/vimperator-plugins/blob/master/alias.js"
           summary="Define the alias for a command."
           lang="en-US"
           xmlns="http://vimperator.org/namespaces/liberator">
@@ -84,7 +83,7 @@ let INFO =
     </ex></code>
   </plugin>
   <plugin name="alias" version="1.0.0"
-          href="http://svn.coderepos.org/share/lang/javascript/vimperator-plugins/trunk/alias.js"
+          href="http://github.com/vimpr/vimperator-plugins/blob/master/alias.js"
           summary="コマンドに別名(エイリアス|alias)をつける。"
           lang="ja"
           xmlns="http://vimperator.org/namespaces/liberator">
@@ -107,11 +106,20 @@ let INFO =
 :lazy alias newName oldCommandName
     </ex></code>
   </plugin>
-</>;
+`;
 // }}}
 
 
 (function () {
+
+  // FIXME "vim[perator]" に対応してない
+  function removeOld (name) {
+    let cmd = commands.get(name);
+    if (!cmd)
+      return;
+    if (cmd.specs instanceof Array)
+      cmd.specs = cmd.specs.filter(function (it) it !== name);
+  }
 
   commands.addUserCommand(
     ['alias'],
@@ -123,6 +131,7 @@ let INFO =
       if (!cmd)
         return liberator.echoerr('Not found command with: ' + oldName);
 
+      removeOld(newName);
       cmd.specs.push(newName);
       // XXX 必要でない気もする。実際コマンドの検索には要らない。
       Command.prototype.init.call(cmd, cmd.specs, cmd.description, cmd.action);

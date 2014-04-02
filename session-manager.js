@@ -33,7 +33,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 }}} */
 
 // PLUGIN_INFO {{{
-let PLUGIN_INFO =
+let PLUGIN_INFO = xml`
 <VimperatorPlugin>
   <name>Session Manager</name>
   <name lang="ja">Session Manager</name>
@@ -51,13 +51,12 @@ let PLUGIN_INFO =
   <detail lang="ja"><![CDATA[
     sm <sub-command> <session-name>
   ]]></detail>
-</VimperatorPlugin>;
+</VimperatorPlugin>`;
 // }}}
 // INFO {{{
-let INFO =
-<>
+let INFO = xml`
   <plugin name="session-manager" version="1.3.4"
-          href="http://svn.coderepos.org/share/lang/javascript/vimperator-plugins/trunk/session-manager"
+          href="http://github.com/vimpr/vimperator-plugins/blob/master/session-manager"
           summary="for Session Manager Addon"
           lang="en-US"
           xmlns="http://vimperator.org/namespaces/liberator">
@@ -77,7 +76,7 @@ let INFO =
     </item>
   </plugin>
   <plugin name="session-manager" version="1.3.4"
-          href="http://svn.coderepos.org/share/lang/javascript/vimperator-plugins/trunk/session-manager"
+          href="http://github.com/vimpr/vimperator-plugins/blob/master/session-manager"
           summary="for Session Manager Addon"
           lang="ja"
           xmlns="http://vimperator.org/namespaces/liberator">
@@ -96,7 +95,7 @@ let INFO =
       </description>
     </item>
   </plugin>
-</>;
+`;
 // }}}
 
 // 参考スクリプト:
@@ -220,7 +219,7 @@ let INFO =
         context.completions = [
           [file.leafName.replace(/\.session$/, ''), new Date(file.lastModifiedTime)]
           for ([,file] in Iterator(io.File(gSessionManager.getSessionDir()).readDirectory()))
-          if (!ignoreAuto || args['-auto'] || !/^(backup(-\d+)?|autosave)\.session$/(file.leafName))
+          if (!ignoreAuto || args['-auto'] || !/^(backup(-\d+)?|autosave)\.session$/.test(file.leafName))
         ].sort(function ([, a], [, b]) (b - a));
       }
     },

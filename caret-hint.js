@@ -33,8 +33,7 @@ THE POSSIBILITY OF SUCH DAMAGE.
 }}} */
 
 // INFO {{{
-let INFO =
-<>
+let INFO = xml`
   <plugin name="Caret Hint" version="1.4.0"
           href="http://vimpr.github.com/"
           summary="Move caret position by hint"
@@ -161,7 +160,7 @@ let INFO =
       </p></description>
     </item>
   </plugin>
-</>;
+`;
 // }}}
 
 /*       _\|/_
@@ -288,7 +287,7 @@ let INFO =
 
   // Vimperator 3.0 までと 3.1 以降に両対応
   const [CaretKey, VisualKey] =
-    /caret/(mappings.getDefault(modes.NORMAL, 'i').description) ? ['i', 'v'] : ['c', 'v'];
+    /caret/.exec(mappings.getDefault(modes.NORMAL, 'i').description) ? ['i', 'v'] : ['c', 'v'];
 
   function moveCaret (elem, head, select) {
     let doc = elem.ownerDocument;

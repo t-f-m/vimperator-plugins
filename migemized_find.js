@@ -1,5 +1,5 @@
-/* {{{
-Copyright (c) 2008-2009, anekos.
+/* NEW BSD LICENSE {{{
+Copyright (c) 2008-2011, anekos.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,
@@ -32,56 +32,74 @@ THE POSSIBILITY OF SUCH DAMAGE.
 
 }}} */
 
-// PLUGIN_INFO {{{
-let PLUGIN_INFO =
-<VimperatorPlugin>
-  <name>Migemized Find</name>
-  <name lang="ja">Migemized Find</name>
-  <description>Migemize default page search.</description>
-  <description lang="ja">デフォルトのドキュメント内検索をミゲマイズする。</description>
-  <version>2.10.1</version>
-  <author mail="anekos@snca.net" homepage="http://d.hatena.ne.jp/nokturnalmortum/">anekos</author>
-  <license>new BSD License (Please read the source code comments of this plugin)</license>
-  <license lang="ja">修正BSDライセンス (ソースコードのコメントを参照してください)</license>
-  <updateURL>https://github.com/vimpr/vimperator-plugins/raw/master/migemized_find.js</updateURL>
-  <minVersion>3.0</minVersion>
-  <maxVersion>3.0</maxVersion>
-  <detail><![CDATA[
-    == Usage ==
-      検索ワードの一文字目が
-         '/'  => 正規表現検索
-         '?'  => Migemo検索
-         以外 => Migemo検索
-
-      検索ワードを指定色で強調表示する:
-        >||
-          :ml <検索ワード> [-c <色>]
-          :migelight <検索ワード> [-c <色>]
-        ||<
-
-      指定の色の強調表示を消す:
-        >||
-         :rml <色1> <色2> ... <色N>
-         :removemigelight  <色1> <色2> ... <色N>
-        ||<
-
-      全ての強調表示を消す:
-        >||
-          :ml! all
-          :migelight! all
-        ||<
-
-      ミ言語設定:
-        >||
-          let g:migemized_find_language = "cat";
-        ||<
-
-    == Link ==
-        http://d.hatena.ne.jp/nokturnalmortum/20080805/1217941126
-  ]]></detail>
-</VimperatorPlugin>;
+// INFO {{{
+let INFO = xml`
+  <plugin name="MigemizedFind" version="2.11.5"
+          href="http://vimpr.github.com/"
+          summary="Search and Highlight with Migemo."
+          lang="en-US"
+          xmlns="http://vimperator.org/namespaces/liberator">
+    <author email="anekos@snca.net">anekos</author>
+    <license>New BSD License</license>
+    <project name="Vimperator" minVersion="3.0"/>
+  </plugin>
+  <plugin name="MigemizedFind" version="2.11.5"
+          href="http://vimpr.github.com/"
+          summary="Migemo で検索 &amp; ハイライト"
+          lang="ja"
+          xmlns="http://vimperator.org/namespaces/liberator">
+    <author email="anekos@snca.net">anekos</author>
+    <license>New BSD License</license>
+    <project name="Vimperator" minVersion="3.0"/>
+    <p>
+      このプラグインは _libly.js が必要です。
+    </p>
+    <item>
+      <tags>migemized_find_search_word_spec</tags>
+      <description><p>First letter of search word:
+        <dl>
+          <dt>/</dt><dd>Regexp search</dd>
+          <dt>?</dt><dd>Migemo search</dd>
+          <dt>otherwise</dt><dd>Migemo search</dd>
+          </dl>
+      </p></description>
+    </item>
+    <item>
+      <tags>:migelight</tags>
+      <tags>:ml</tags>
+      <spec>:migelight <oa>-color=<a>color</a></oa> <a>word</a></spec>
+      <spec>:ml <oa>-color=<a>color</a></oa> <a>word</a></spec>
+      <description><p>
+        <a>word</a> をハイライトする。
+      </p></description>
+    </item>
+    <item>
+      <tags>:removemigelight</tags>
+      <tags>:rml</tags>
+      <spec>:removemigelight <a>color1</a> <oa>color2</oa> <oa>color3</oa> ...</spec>
+      <spec>:rml <a>color1</a> <oa>color2</oa> <oa>color3</oa> ...</spec>
+      <description><p>
+        <a>color</a> のハイライトを削除する。
+        <a>color</a> に "all" を指定すると全て削除される。
+      </p></description>
+    </item>
+    <item>
+      <tags>g:migemized_find_language</tags>
+      <spec>let g:migemized_find_language = <a>lang</a></spec>
+      <description><p>
+        検索対象言語の設定
+      </p></description>
+    </item>
+    <item>
+      <tags>g:migemized_find_history_limit</tags>
+      <spec>let g:migemized_history_limit = <a>number</a></spec>
+      <description><p>
+        検索履歴の保存される最大数 (デフォルト: 100)
+      </p></description>
+    </item>
+  </plugin>
+`;
 // }}}
-
 
 (function () {
 
@@ -232,10 +250,16 @@ let PLUGIN_INFO =
     indigo: '#4b0082',
   };
 
+  function className (name) {
+    return 'anekos-migemized-find-' +name;
+  }
+
   let colorsCompltions = [
-    [name, <span style={'color: ' + name}>{'\u25a0 ' + value}</span>]
+    [name, xml`<span style=${'color: ' + name}>${'\u25a0 ' + value}</span>`]
     for each ([name, value] in Iterator(colors))
   ];
+
+  let store = storage.newMap(__context__.NAME, {store: true});
 
   function s2b (s, d) (!/^(\d+|false)$/i.test(s)|parseInt(s)|!!d*2)&1<<!s;
 
@@ -265,6 +289,9 @@ let PLUGIN_INFO =
     MODE_NORMAL: 0,
     MODE_REGEXP: 1,
     MODE_MIGEMO: 2,
+
+    // 検索履歴
+    history: store.get('history', []),
 
     // 全体で共有する変数
     lastSearchText: null,
@@ -300,7 +327,8 @@ let PLUGIN_INFO =
       let result = [];
       (function (frame) {
         // ボディがない物は検索対象外なので外す
-        if (frame.document.body.localName.toLowerCase() == 'body')
+        let body = frame.document.querySelector('body');
+        if (body && body.localName.toLowerCase() == 'body')
           result.push(frame);
         for (let i = 0; i < frame.frames.length; i++)
           arguments.callee(frame.frames[i]);
@@ -308,10 +336,24 @@ let PLUGIN_INFO =
       return result;
     },
 
+    // 履歴にアイテム追加
+    pushHistory: function (s) {
+      let exists = false, newHistory = [];
+      newHistory.push(s);
+      for (let [i, h] in Iterator(this.history)) {
+        if (h === s) {
+          exists = true;
+        } else {
+          newHistory.push(h);
+        }
+      }
+      this.history = newHistory;
+    },
+
     // ボディを範囲とした Range を作る
     makeBodyRange: function (frame) {
       let range = frame.document.createRange();
-      range.selectNodeContents(frame.document.body);
+      range.selectNodeContents(frame.document.querySelector('body'));
       return range;
     },
 
@@ -350,6 +392,7 @@ let PLUGIN_INFO =
     highlight: function (target, color, doScroll, setRemover) {
       let span = this.document.createElement('span');
 
+      span.setAttribute('class', className('highlight'));
       span.setAttribute('style', this.coloredStyle(color));
       target.range.surroundContents(span);
 
@@ -368,13 +411,19 @@ let PLUGIN_INFO =
       }
 
       let remover = function () {
-        let range = this.document.createRange();
-        range.selectNodeContents(span);
-        let content = range.extractContents();
-        range.setStartBefore(span);
-        range.insertNode(content);
-        range.selectNode(span);
-        range.deleteContents();
+        try {
+          let range = this.document.createRange();
+          range.selectNodeContents(span);
+          let content = range.extractContents();
+          range.setStartBefore(span);
+          range.insertNode(content);
+          range.selectNode(span);
+          range.deleteContents();
+        } catch (e if /The operation is insecure./.test(e.toString())) {
+          /* XXX * 必殺奥義 catch 黙殺
+           * 「/foo<CR>:reload<CR><WAIT_FOR_RELOAD>/bar<CR>」で、リロード前のページのハイライトを削除しようとしてエラーになる模様。
+           */
+        }
       };
 
       if (setRemover)
@@ -444,6 +493,7 @@ let PLUGIN_INFO =
     findAgain: function (reverse) {
       let backwards = !!(!this.lastDirection ^ !reverse);
       let last = this.storage.lastResult;
+
       let frames = this.currentFrames;
 
       // 前回の結果がない場合、(初め|最後)のフレームを対象にする
@@ -494,6 +544,8 @@ let PLUGIN_INFO =
     },
 
     submit: function () {
+      this.pushHistory(this.currentSearchText);
+
       this.lastSearchText = this.currentSearchText;
       this.lastSearchExpr = this.currentSearchExpr;
       this.lastColor = this.currentColor;
@@ -570,6 +622,8 @@ let PLUGIN_INFO =
         clearTimeout(delayCallTimer);
         delayedFunc();
       }
+      if (MF.currentSearchText !== command)
+        MF.findFirst(command, forcedBackward);
       if (!MF.submit())
         liberator.echoerr('not found: ' + MF.currentSearchText);
     },
@@ -578,40 +632,63 @@ let PLUGIN_INFO =
       MF.cancel();
     },
 
-    onKeyPress: function (str) {
-      liberator.log('onKeyPress');
+    onChange: function (str) {
       if (typeof str == 'string') {
-        liberator.log('findFirst');
         _findFirst(str, _backwards);
       } else if (str === false)
         MF.findAgain();
     },
+
+    completer: function (context, args) {
+      context.compare = CompletionContext.Sort.unsorted;
+      context.completions = [
+        [v, v]
+        for ([, v] in Iterator(MF.history))
+      ];
+    }
   };
 
-  commandline.registerCallback("change", modes.SEARCH_FORWARD, migemized.onKeyPress);
-  commandline.registerCallback("submit", modes.SEARCH_FORWARD, migemized.onSubmit);
-  commandline.registerCallback("cancel", modes.SEARCH_FORWARD, migemized.onCancel);
-  commandline.registerCallback("change", modes.SEARCH_BACKWARD, migemized.onKeyPress);
-  commandline.registerCallback("submit", modes.SEARCH_BACKWARD, migemized.onSubmit);
-  commandline.registerCallback("cancel", modes.SEARCH_BACKWARD, migemized.onCancel);
-
   finder.findAgain = migemized.findAgain;
+
+  plugins.libly.$U.around(
+    finder,
+    'openPrompt',
+    function (next, [mode]) {
+      let res = next();
+      plugins.libly.$U.around(commandline._input, 'change', function (next, [str]) migemized.onChange(str));
+      plugins.libly.$U.around(commandline._input, 'submit', function (next, [str]) migemized.onSubmit(str));
+      plugins.libly.$U.around(commandline._input, 'cancel', function (next, [str]) migemized.onCancel());
+      commandline._input.complete = migemized.completer;
+      return res;
+    },
+    true
+  );
 
   // highlight コマンド
   commands.addUserCommand(
     ['ml', 'migelight'],
     'Migelight matched words',
     function (args) {
-      let r = MF.highlightAll(args.join(' '), args['-color']);
+      let w = args.literalArg;
+      MF.pushHistory(w);
+      let r = MF.highlightAll(w, args['-color']);
       liberator.echo(r ? r.length + ' words migelighted.'
                        : 'word not found.');
     },
     {
-      bang: true,
+      literal: 0,
       options: [
         [['-color', '-c'], commands.OPTION_STRING, null, colorsCompltions],
-      ]
-    }
+      ],
+      completer: function (context, args) {
+        context.compare = void 0;
+        context.completions = [
+          [v, 'History']
+          for ([, v] in Iterator(MF.history))
+        ];
+      }
+    },
+    true
   );
 
   // remove highlight コマンド
@@ -647,10 +724,19 @@ let PLUGIN_INFO =
         [['-backward', '-b'], commands.OPTION_NOARG],
         [['-color', '-c'], commands.OPTION_STRING, null, colorsCompltions],
       ]
-    }
+    },
+    true
   );
 
   // 外から使えるように
   liberator.plugins.migemizedFind = MF;
+
+  // 履歴の保存
+  __context__.onUnload = function () {
+    let limit = parseInt(liberator.globalVariables.migemized_find_history_limit || 100, 10);
+    store.set('history', MF.history.slice(0, limit));
+  };
+
+  __context__.migemized = migemized;
 
 })();

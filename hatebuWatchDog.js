@@ -30,7 +30,7 @@
 //
 // }}}
 // PLUGIN INFO: {{{
-let PLUGIN_INFO =
+let PLUGIN_INFO = xml`
 <VimperatorPlugin>
   <name>{NAME}</name>
   <description>Make notify hatebu-count when specified site's hatebu-count changed.</description>
@@ -89,7 +89,7 @@ let PLUGIN_INFO =
       - 監視フレームワークにのっける
 
     ]]></detail>
-  </VimperatorPlugin>;
+  </VimperatorPlugin>`;
 // }}}
 
 // Clear all watchers if started watcher exists.
@@ -119,13 +119,13 @@ let publics = plugins.hatebuWatchDog = (function() {
     );
 
     let currentValue;
-    req.addEventListener("onSuccess", function(data) {
+    req.addEventListener("success", function(data) {
       liberator.log("XML-RPC request was succeeded.");
       let resXml = new XML(data.responseText.replace(/^<\?xml version[^>]+?>/, ''));
       currentValue = window.eval(resXml..int.toString());
       onSuccess(currentValue);
     });
-    req.addEventListener("onFailure", function(data) {
+    req.addEventListener("failure", function(data) {
       onFailure();
     });
     liberator.log("reauest...");
